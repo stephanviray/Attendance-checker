@@ -26,8 +26,8 @@ A mobile application built with React Native and Expo for managing attendance.
 ### Installation
 1. Clone the repository:
 ```bash
-git clone [your-repository-url]
-cd attendance-app
+git clone https://github.com/stephanviray/Attendance-checker.git
+cd Attendance-checker
 ```
 
 2. Install dependencies:
