@@ -15,6 +15,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../utils/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -139,10 +140,14 @@ export default function LoginScreen({ navigation }) {
             style={styles.logo} 
             resizeMode="contain"
           />
-          <Text style={styles.appTitle}>Smart Attendance</Text>
         </View>
         
-        <Text style={styles.title}>{isLogin ? 'Login' : 'Create Account'}</Text>
+        <Text style={styles.title}>{isLogin ? 'Welcome Back' : 'Create account'}</Text>
+        {isLogin ? (
+          <Text style={styles.subtitle}>Login to your account</Text>
+        ) : (
+          <Text style={styles.subtitle}>Register an account</Text>
+        )}
         
         <View style={styles.formContainer}>
           {errorMessage ? (
@@ -157,16 +162,20 @@ export default function LoginScreen({ navigation }) {
             </View>
           ) : null}
           
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
+          <View style={styles.inputContainer}>
+            <MaterialCommunityIcons name="email-outline" size={20} color="#0b3a32" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </View>
           
           <View style={styles.passwordContainer}>
+            <MaterialCommunityIcons name="lock-outline" size={20} color="#0b3a32" style={styles.inputIcon} />
             <TextInput
               style={styles.passwordInput}
               placeholder="Password"
@@ -178,15 +187,16 @@ export default function LoginScreen({ navigation }) {
               style={styles.showPasswordButton}
               onPress={() => setShowPassword(!showPassword)}
             >
-              <Text style={styles.showPasswordText}>
-                {showPassword ? 'Hide' : 'Show'}
-              </Text>
+              <MaterialCommunityIcons 
+                name={showPassword ? "eye-off" : "eye"} 
+                size={20} 
+                color="#0b3a32" 
+              />
             </TouchableOpacity>
           </View>
           
           {!isLogin && (
             <View style={styles.roleSelection}>
-              <Text style={styles.roleLabel}>Account Type:</Text>
               <View style={styles.roleOptions}>
                 <TouchableOpacity 
                   style={[
@@ -195,6 +205,12 @@ export default function LoginScreen({ navigation }) {
                   ]}
                   onPress={() => setRole('employee')}
                 >
+                  <MaterialCommunityIcons 
+                    name="account-outline" 
+                    size={20} 
+                    color={role === 'employee' ? 'white' : '#0b3a32'} 
+                    style={styles.roleIcon}
+                  />
                   <Text 
                     style={[
                       styles.roleButtonText,
@@ -212,6 +228,12 @@ export default function LoginScreen({ navigation }) {
                   ]}
                   onPress={() => setRole('company')}
                 >
+                  <MaterialCommunityIcons 
+                    name="office-building-outline" 
+                    size={20} 
+                    color={role === 'company' ? 'white' : '#0b3a32'} 
+                    style={styles.roleIcon}
+                  />
                   <Text 
                     style={[
                       styles.roleButtonText,
@@ -242,8 +264,8 @@ export default function LoginScreen({ navigation }) {
           <TouchableOpacity onPress={toggleMode} style={styles.switchModeButton}>
             <Text style={styles.switchModeText}>
               {isLogin 
-                ? "Don't have an account? Sign up" 
-                : "Already have an account? Login"}
+                ? <Text><Text style={styles.switchModeQuestion}>Don't have an account? </Text><Text style={styles.switchModeAction}>Sign up</Text></Text>
+                : <Text><Text style={styles.switchModeQuestion}>Already have an account? </Text><Text style={styles.switchModeAction}>Login</Text></Text>}
             </Text>
           </TouchableOpacity>
         </View>
@@ -255,7 +277,7 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'white',
   },
   scrollContainer: {
     flexGrow: 1,
@@ -277,11 +299,17 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   title: {
-    fontSize: 28,
+    fontSize: 36,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 5,
     textAlign: 'center',
-    color: '#333',
+    color: '#0b3a32',
+  },
+  subtitle: {
+    fontSize: 18,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 60,
   },
   formContainer: {
     width: '100%',
@@ -298,19 +326,30 @@ const styles = StyleSheet.create({
     color: '#c62828',
     fontSize: 14,
   },
-  input: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 15,
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e1eae3',
+    borderRadius: 20,
     marginBottom: 15,
     borderWidth: 1,
     borderColor: '#ddd',
+  },
+  inputIcon: {
+    marginLeft: 15,
+    color: '#0b3a32',
+  },
+  input: {
+    flex: 1,
+    padding: 15,
     fontSize: 16,
+    backgroundColor: 'transparent',
+    color: undefined,
   },
   passwordContainer: {
     flexDirection: 'row',
-    backgroundColor: 'white',
-    borderRadius: 8,
+    backgroundColor: '#e1eae3',
+    borderRadius: 20,
     marginBottom: 15,
     borderWidth: 1,
     borderColor: '#ddd',
@@ -320,13 +359,11 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 15,
     fontSize: 16,
+    backgroundColor: 'transparent',
+    color: undefined,
   },
   showPasswordButton: {
     padding: 15,
-  },
-  showPasswordText: {
-    color: '#2196F3',
-    fontWeight: '600',
   },
   roleSelection: {
     marginBottom: 15,
@@ -345,27 +382,34 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: 8,
+    borderRadius: 20,
     alignItems: 'center',
     marginHorizontal: 5,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    backgroundColor: undefined,
   },
   roleButtonActive: {
-    backgroundColor: '#2196F3',
-    borderColor: '#2196F3',
+    backgroundColor: '#0b3a32',
+    borderColor: '#0b3a32',
   },
   roleButtonText: {
-    color: '#333',
+    color: '#0b3a32',
     fontWeight: '600',
   },
   roleButtonTextActive: {
     color: 'white',
   },
+  roleIcon: {
+    marginRight: 8,
+  },
   button: {
-    backgroundColor: '#2196F3',
-    borderRadius: 8,
+    backgroundColor: '#0b3a32',
+    borderRadius: 30,
     padding: 15,
     alignItems: 'center',
     marginTop: 10,
+    opacity: undefined,
   },
   buttonText: {
     color: 'white',
@@ -377,8 +421,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   switchModeText: {
-    color: '#2196F3',
     fontSize: 16,
+  },
+  switchModeQuestion: {
+    color: '#666',
+  },
+  switchModeAction: {
+    color: '#0b3a32',
+    fontWeight: '600',
   },
   infoContainer: {
     backgroundColor: '#e3f2fd',
