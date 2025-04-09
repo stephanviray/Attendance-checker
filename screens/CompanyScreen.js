@@ -321,7 +321,7 @@ const CompanyScreen = ({ navigation }) => {
               style={styles.headerSignOutButton} 
               onPress={handleSignOut}
             >
-              <Ionicons name="log-out-outline" size={24} color="#E57373" />
+              <Ionicons name="log-out-outline" size={24} color="#0b3a32" />
             </TouchableOpacity>
           </View>
           
@@ -340,7 +340,7 @@ const CompanyScreen = ({ navigation }) => {
                   <Text style={styles.actionButtonSubtext}>Record employee check-in/out</Text>
                 </View>
                 <View style={styles.actionArrow}>
-                  <Ionicons name="chevron-forward" size={20} color="#4CAF50" />
+                  <Ionicons name="chevron-forward" size={20} color="#0b3a32" />
                 </View>
               </View>
             </TouchableOpacity>
@@ -452,16 +452,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 20,
     paddingBottom: 20,
     backgroundColor: '#FFF',
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 4,
+    width: '90%',
+    marginLeft: 20, 
+    marginTop: 20,
   },
   headerContent: {
     flex: 1,
@@ -494,12 +499,12 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
     borderWidth: 2,
-    borderColor: '#4CAF50',
+    borderColor: '#0b3a32',
   },
   scanActionButton: {
     backgroundColor: '#FFF',
     borderWidth: 2,
-    borderColor: '#4CAF50',
+    borderColor: '#e1eae3',
   },
   generateActionButton: {
     backgroundColor: '#FFF',
@@ -515,7 +520,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   scanActionButtonIcon: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#0b3a32',
   },
   generateActionButtonIcon: {
     backgroundColor: '#2196F3',
@@ -611,6 +616,7 @@ const styles = StyleSheet.create({
   },
   timeBlock: {
     flex: 1,
+    marginLeft: 30,
   },
   timeRow: {
     flexDirection: 'row',
@@ -682,15 +688,6 @@ const styles = StyleSheet.create({
   },
   headerSignOutButton: {
     padding: 10,
-    borderRadius: 30,
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#E57373',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   actionButtonInner: {
     flexDirection: 'row',
