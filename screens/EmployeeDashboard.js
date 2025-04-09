@@ -214,12 +214,12 @@ export default function EmployeeDashboard({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      {/*<View style={styles.header}>
         <Text style={styles.headerTitle}>Employee Dashboard</Text>
         <TouchableOpacity onPress={handleSignOut} style={styles.signOutButton}>
           <Ionicons name="log-out-outline" size={24} color="#666" />
         </TouchableOpacity>
-      </View>
+      </View>*/}
 
       <ScrollView>
         <View style={styles.profileSection}>
@@ -228,9 +228,15 @@ export default function EmployeeDashboard({ navigation }) {
             <Text style={styles.nameText}>{userProfile?.full_name || user?.email}</Text>
             <Text style={styles.emailText}>{user?.email}</Text>
           </View>
+
+        <View style={styles.logoutButton}>
+          <TouchableOpacity onPress={handleSignOut} style={styles.signOutButton}>
+            <Ionicons name="log-out-outline" size={24} color="#666" />
+          </TouchableOpacity>
+        </View>
           
           {/* Sync status indicator */}
-          <View style={styles.syncStatus}>
+          {/*<View style={styles.syncStatus}>
             <Ionicons 
               name={syncStatus === 'synced' ? 'cloud-done' : 
                     syncStatus === 'syncing' ? 'cloud-upload' : 
@@ -244,7 +250,7 @@ export default function EmployeeDashboard({ navigation }) {
                syncStatus === 'syncing' ? 'Syncing...' : 
                syncStatus === 'error' ? 'Sync Error' : 'Not Synced'}
             </Text>
-          </View>
+          </View>*/}
         </View>
 
         {/* QR Code Section */}
@@ -274,6 +280,23 @@ export default function EmployeeDashboard({ navigation }) {
               <Text style={styles.syncButtonText}>Share Web Sync Link</Text>
             </TouchableOpacity>
           )}
+
+          <View style={styles.syncStatus}>
+            <Ionicons 
+              name={syncStatus === 'synced' ? 'cloud-done' : 
+                    syncStatus === 'syncing' ? 'cloud-upload' : 
+                    syncStatus === 'error' ? 'cloud-offline' : 'cloud'} 
+              size={20} 
+              color={syncStatus === 'synced' ? '#4CAF50' : 
+                     syncStatus === 'error' ? '#F44336' : '#2196F3'} 
+            />
+            <Text style={styles.syncStatusText}>
+              {syncStatus === 'synced' ? 'Web Synced' : 
+               syncStatus === 'syncing' ? 'Syncing...' : 
+               syncStatus === 'error' ? 'Sync Error' : 'Not Synced'}
+            </Text>
+          </View>
+          
         </View>
 
         <View style={styles.statsContainer}>
@@ -341,7 +364,8 @@ export default function EmployeeDashboard({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: '#e1eae3',
+    padding: 10,
   },
   header: {
     flexDirection: 'row',
@@ -355,7 +379,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#0b3a32',
   },
   signOutButton: {
     padding: 8,
@@ -366,11 +390,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#eeeeee',
+    marginTop: 50,
+    borderRadius: 10,
   },
   profileTextContainer: {
     flex: 1,
+    marginLeft: 15,
   },
-  welcomeText: {
+  logoutButton: {
+    marginTop: 15,
+  },
+  welcomeText: { 
     fontSize: 14,
     color: '#666',
   },
@@ -390,6 +420,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     marginTop: 15,
     alignItems: 'center',
+    borderRadius: 10,
   },
   qrTitle: {
     fontSize: 18,
@@ -432,6 +463,7 @@ const styles = StyleSheet.create({
     padding: 15,
     marginTop: 15,
     backgroundColor: 'white',
+    borderRadius: 10,
   },
   statCard: {
     flex: 1,
@@ -457,6 +489,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     marginTop: 15,
     marginBottom: 20,
+    borderRadius: 10,
   },
   sectionTitle: {
     fontSize: 18,
@@ -544,7 +577,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#4285F4',
+    backgroundColor: '#0b3a32',
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 20,
