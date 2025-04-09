@@ -442,7 +442,7 @@ const CompanyScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: '#e1eae3',
   },
   scrollView: {
     flex: 1,
@@ -462,8 +462,6 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
     width: '90%',
     marginLeft: 20, 
     marginTop: 20,
