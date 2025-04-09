@@ -391,7 +391,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#eeeeee',
     marginTop: 50,
-    borderRadius: 10,
+    borderRadius: 20,
+    width: '95%',
+    marginLeft: 10,
   },
   profileTextContainer: {
     flex: 1,
@@ -420,7 +422,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     marginTop: 15,
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 20,
+    width: '95%',
+    marginLeft: 10,
   },
   qrTitle: {
     fontSize: 18,
@@ -463,7 +467,9 @@ const styles = StyleSheet.create({
     padding: 15,
     marginTop: 15,
     backgroundColor: 'white',
-    borderRadius: 10,
+    borderRadius: 20,
+    width: '95%',
+    marginLeft: 10,
   },
   statCard: {
     flex: 1,
@@ -489,7 +495,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     marginTop: 15,
     marginBottom: 20,
-    borderRadius: 10,
+    borderRadius: 20,
+    width: '95%',
+    marginLeft: 10,
   },
   sectionTitle: {
     fontSize: 18,
