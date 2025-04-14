@@ -1186,7 +1186,7 @@ function displayEmployees(employees) {
                             <i class="bi bi-pencil"></i>
                         </button>
                         <button class="btn btn-outline-danger" onclick="${employee.archived ? 'restoreEmployee' : 'archiveEmployee'}('${employee.id}')">
-                            <i class="bi ${employee.archived ? 'bi-arrow-counterclockwise' : 'bi-archive'}"></i>
+                            <i class="bi ${employee.archived ? 'bi-arrow-counterclockwise' : 'bi bi-dash-circle'}"></i>
                         </button>
                     </div>
                 </td>
