@@ -1,0 +1,7 @@
+id,email,first_name,last_name,middle_initial,address,phone_number,salary,"position",department,custom_id,role,company_id,archived
+550e8400-e29b-41d4-a716-446655440000,john.doe@example.com,John,Doe,A,"123 Main St, Anytown",555-123-4567,65000,Software Engineer,Engineering,EMP001,employee,550e8400-e29b-41d4-a716-446655440001,false
+550e8400-e29b-41d4-a716-446655440002,jane.smith@example.com,Jane,Smith,B,"456 Oak Ave, Othertown",555-234-5678,72000,UX Designer,Design,EMP002,employee,550e8400-e29b-41d4-a716-446655440001,false
+550e8400-e29b-41d4-a716-446655440003,robert.johnson@example.com,Robert,Johnson,,"789 Pine Rd, Somewhere",555-345-6789,58000,Technical Writer,Documentation,EMP003,employee,550e8400-e29b-41d4-a716-446655440001,false
+550e8400-e29b-41d4-a716-446655440004,sarah.wilson@example.com,Sarah,Wilson,C,"101 Elm St, Anywhere",555-456-7890,85000,Project Manager,Management,EMP004,employee,550e8400-e29b-41d4-a716-446655440001,false
+550e8400-e29b-41d4-a716-446655440005,michael.brown@example.com,Michael,Brown,D,"202 Maple Dr, Nowhere",555-567-8901,92000,Senior Developer,Engineering,EMP005,employee,550e8400-e29b-41d4-a716-446655440001,false
+550e8400-e29b-41d4-a716-446655440001,admin@company.com,Admin,User,,"1000 Corporate Blvd, HQ",555-999-9999,120000,CEO,Executive,ADMIN001,company,,false  
