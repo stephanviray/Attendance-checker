@@ -26,7 +26,7 @@ const { width } = Dimensions.get('window');
 const QR_SIZE = Math.min(width * 0.6, 200);
 
 export default function EmployeeDashboard({ navigation }) {
-  const { user, signOut } = useAuth();
+  const { user, signOut, userRole } = useAuth();
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -349,30 +349,36 @@ export default function EmployeeDashboard({ navigation }) {
           /* Attendance Section */
           <View style={styles.contentContainer}>
             {/* QR Code Section */}
-            <View style={styles.qrSection}>
-              <Text style={styles.sectionTitle}>Your Attendance QR Code</Text>
-              <View style={styles.qrContainer}>
-                {qrValue ? (
-                  <QRCode
-                    value={qrValue}
-                    size={QR_SIZE}
-                    color="#000"
-                    backgroundColor="#fff"
-                  />
-                ) : (
-                  <View style={[styles.qrPlaceholder, {width: QR_SIZE, height: QR_SIZE}]}>
-                    <Ionicons name="qr-code" size={QR_SIZE/2} color="#ccc" />
-                  </View>
-                )}
+            {userRole === 'employee' ? (
+              <View style={styles.qrSection}>
+                <Text style={styles.sectionTitle}>Your Attendance QR Code</Text>
+                <View style={styles.qrContainer}>
+                  {qrValue ? (
+                    <QRCode
+                      value={qrValue}
+                      size={QR_SIZE}
+                      color="#000"
+                      backgroundColor="#fff"
+                    />
+                  ) : (
+                    <View style={[styles.qrPlaceholder, {width: QR_SIZE, height: QR_SIZE}]}>
+                      <Ionicons name="qr-code" size={QR_SIZE/2} color="#ccc" />
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.qrInstructions}>
+                  Show this QR code to check in or out of work
+                </Text>
               </View>
-              <Text style={styles.qrInstructions}>
-                Show this QR code to check in or out of work
-              </Text>
-              <TouchableOpacity style={styles.scanButton} onPress={handleScanQR}>
-                <Ionicons name="scan-outline" size={20} color="#fff" />
-                <Text style={styles.scanButtonText}>Scan QR Code</Text>
-              </TouchableOpacity>
-            </View>
+            ) : (
+              <View style={styles.qrSection}>
+                <Text style={styles.sectionTitle}>Scan Employee QR Code</Text>
+                <TouchableOpacity style={styles.scanButton} onPress={handleScanQR}>
+                  <Ionicons name="scan-outline" size={20} color="#fff" />
+                  <Text style={styles.scanButtonText}>Scan QR Code</Text>
+                </TouchableOpacity>
+              </View>
+            )}
             
             {/* Attendance History */}
             <View style={styles.historySection}>
