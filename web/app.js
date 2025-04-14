@@ -1189,6 +1189,9 @@ function displayEmployees(employees) {
                 <td>${new Date(employee.created_at).toLocaleDateString()}</td>
                 <td>
                     <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-info" onclick="showEmployeeDetailsModal(${JSON.stringify(employee).replace(/"/g, '&quot;')})">
+                            <i class="bi bi-eye"></i>
+                        </button>
                         <button class="btn btn-outline-primary" onclick="showEditEmployeeModal(${JSON.stringify(employee).replace(/"/g, '&quot;')})">
                             <i class="bi bi-pencil"></i>
                         </button>
@@ -2402,6 +2405,139 @@ async function testDatabaseConnection() {
         showToast('Connection Warning', 'Database connection check failed but will try to save anyway.', 'warning');
         return true;
     }
+}
+
+// Function to show employee personal details modal
+function showEmployeeDetailsModal(employee) {
+    console.log('Showing details for employee:', employee);
+    
+    // Create modal if it doesn't exist
+    if (!document.getElementById('employeeDetailsModal')) {
+        const modalHTML = `
+            <div class="modal fade" id="employeeDetailsModal" tabindex="-1" aria-labelledby="employeeDetailsModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="employeeDetailsModalLabel">Employee Details</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row mb-4 align-items-center">
+                                <div class="col-md-2 text-center">
+                                    <div id="detailsAvatar" class="avatar-circle mx-auto" style="width: 80px; height: 80px; font-size: 2rem;"></div>
+                                </div>
+                                <div class="col-md-10">
+                                    <h3 id="detailsName" class="mb-1"></h3>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span id="detailsEmployeeId" class="badge bg-primary me-2"></span>
+                                        <span id="detailsRole" class="badge bg-secondary"></span>
+                                        <span id="detailsStatus" class="ms-2"></span>
+                                    </div>
+                                    <p id="detailsEmail" class="text-muted mb-0"></p>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <h5 class="card-title mb-0">Work Information</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Department</label>
+                                                <p id="detailsDepartment">-</p>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Position</label>
+                                                <p id="detailsPosition">-</p>
+                                            </div>
+                                            <div>
+                                                <label class="form-label fw-bold">Date Hired</label>
+                                                <p id="detailsDateHired">-</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <h5 class="card-title mb-0">Contact Information</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Phone Number</label>
+                                                <p id="detailsPhone">-</p>
+                                            </div>
+                                            <div>
+                                                <label class="form-label fw-bold">Address</label>
+                                                <p id="detailsAddress">-</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card">
+                                <div class="card-header bg-light">
+                                    <h5 class="card-title mb-0">Additional Information</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label fw-bold">Last Updated</label>
+                                            <p id="detailsLastUpdated">-</p>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label fw-bold">UUID</label>
+                                            <p id="detailsUuid" class="text-truncate">-</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="button" class="btn btn-primary" onclick="showEditEmployeeModal(currentEmployeeDetails)">Edit Employee</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
+    
+    // Store the current employee details for the edit button
+    window.currentEmployeeDetails = employee;
+    
+    // Populate modal with employee data
+    document.getElementById('detailsName').textContent = employee.full_name || 'No Name';
+    document.getElementById('detailsEmployeeId').textContent = employee.custom_id || 'NO ID';
+    document.getElementById('detailsRole').textContent = employee.role || 'employee';
+    document.getElementById('detailsStatus').innerHTML = employee.archived ? 
+        '<span class="badge bg-secondary">Archived</span>' : 
+        '<span class="badge bg-success">Active</span>';
+    document.getElementById('detailsEmail').textContent = employee.email || '-';
+    document.getElementById('detailsDepartment').textContent = employee.department || 'Not Assigned';
+    document.getElementById('detailsPosition').textContent = employee.position || 'Not Assigned';
+    document.getElementById('detailsDateHired').textContent = employee.created_at ? 
+        new Date(employee.created_at).toLocaleDateString() : '-';
+    document.getElementById('detailsPhone').textContent = employee.phone_number || '-';
+    document.getElementById('detailsAddress').textContent = employee.address || '-';
+    document.getElementById('detailsLastUpdated').textContent = employee.updated_at ? 
+        new Date(employee.updated_at).toLocaleDateString() : '-';
+    document.getElementById('detailsUuid').textContent = employee.id || '-';
+    
+    // Set avatar
+    const avatarElement = document.getElementById('detailsAvatar');
+    const initials = getInitials(employee.full_name || employee.email);
+    avatarElement.style.backgroundColor = stringToColor(employee.email);
+    avatarElement.textContent = initials;
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('employeeDetailsModal'));
+    modal.show();
 }
 
 
