@@ -118,8 +118,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Redirect based on user role
             const userRole = data.user.user_metadata?.role || profileData?.role || 'employee';
-            
-            if (userRole === 'company') {
+        
+            if (userRole === 'company' || userRole === 'admin') {
                 window.location.href = 'index.html'; // Company dashboard
             } else {
                 // Show access denied message for employees
