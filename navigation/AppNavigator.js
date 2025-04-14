@@ -7,7 +7,7 @@ import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import LoginScreen from '../screens/LoginScreen';
 
 // Employee Screens
-import EmployeeDashboard from '../screens/EmployeeDashboard';
+import EmployeeDashboard from '../screens/EmployeeDashboard.js';
 import ScanScreen from '../screens/ScanScreen';
 
 // Company Screen
