@@ -368,6 +368,10 @@ export default function EmployeeDashboard({ navigation }) {
               <Text style={styles.qrInstructions}>
                 Show this QR code to check in or out of work
               </Text>
+              <TouchableOpacity style={styles.scanButton} onPress={handleScanQR}>
+                <Ionicons name="scan-outline" size={20} color="#fff" />
+                <Text style={styles.scanButtonText}>Scan QR Code</Text>
+              </TouchableOpacity>
             </View>
             
             {/* Attendance History */}
@@ -754,6 +758,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 15,
     color: '#666',
+  },
+  scanButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1a73e8',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 6,
+    marginTop: 16,
+  },
+  scanButtonText: {
+    color: '#fff',
+    fontWeight: '500',
+    marginLeft: 8,
   },
   historySection: {
     backgroundColor: '#fff',
