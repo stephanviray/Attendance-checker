@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - AttendEase</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FullCalendar CSS -->
+    <link href="fullcalendar.min.css" rel="stylesheet">
+    
+    <!-- Authentication check script -->
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            // We'll only check localStorage, not do a Supabase API call
+            // This prevents redirect loops when API calls fail or behave unexpectedly
+            console.log("Checking if user data exists in localStorage");
+            const currentUser = localStorage.getItem('currentUser');
+            
+            if (!currentUser || currentUser === 'undefined' || currentUser === 'null') {
+                console.log("No valid user data found, redirecting to login page");
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            try {
+                // Parse user data to check role
+                const userData = JSON.parse(currentUser);
+                if (!userData || !userData.id) {
+                    console.log("Invalid user data in localStorage, clearing it");
+                    localStorage.removeItem('currentUser');
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                // Check if user has admin role - if not, redirect to login page
+                const userRole = userData.user_metadata?.role || 'employee';
+                console.log("Checking user role:", userRole);
+                if (userRole !== 'admin' && userRole !== 'company') {
+                    console.log("User is not admin/company, redirecting to login page");
+                    localStorage.removeItem('currentUser'); // Clear credentials
+                    window.location.href = 'login.html';
+                    return;
+                }
+                console.log("Admin user authenticated, loading dashboard");
+                
+                // Set default page to attendance logs if not already set
+                if (!localStorage.getItem('currentPage')) {
+                    console.log("Setting default page to attendance logs");
+                    localStorage.setItem('currentPage', 'attendance');
+                }
+            } catch (error) {
+                console.error("Error parsing user data:", error);
+                // If there's an error, clear localStorage and redirect to login
+                localStorage.removeItem('currentUser');
+                window.location.href = 'login.html';
+                return;
+            }
+        });
+    </script>
+    <!-- Report generation libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="container-fluid vh-100">
+        <div class="row vh-100">
+            <!-- Sidebar for navigation -->
+            <div class="col-md-3 col-lg-2 d-md-block bg-dark sidebar-wrapper collapse" id="sidebarMenu">
+                <div class="d-flex flex-column p-3 sidebar-content h-100">
+                    <div class="text-center mb-4">
+                        <h2 class="text-white mb-0">AttendEase</h2>
+                        <small class="text-white-50">Admin Portal</small>
+                    </div>
+                    
+                    <ul class="nav nav-pills flex-column mb-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link text-white d-flex align-items-center" id="attendanceLogsLink">
+                                <i class="bi bi-journal-check me-2"></i>Attendance Logs
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link text-white d-flex align-items-center" id="employeesLink">
+                                <i class="bi bi-people me-2"></i>List of Employees
+                            </a>
+                        </li>
+                    </ul>
+                    
+                    <!-- User profile and logout at bottom -->
+                    <div class="border-top pt-3 mt-auto">
+                        <div class="text-white d-flex align-items-center mb-2">
+                            <div class="avatar-circle me-2" id="userAvatarSidebar">AD</div>
+                            <div>
+                                <div class="fw-semibold" id="currentUserName">Admin</div>
+                                <small class="text-white-50" id="currentUserRole">Administrator</small>
+                            </div>
+                        </div>
+                        <a href="#" class="btn btn-outline-light w-100" id="logoutBtn">
+                            <i class="bi bi-box-arrow-right me-2"></i>Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Mobile header -->
+            <div class="col-12 sticky-top d-md-none bg-dark text-white p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h4 class="m-0">AttendEase</h4>
+                    <button class="btn btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+                        <i class="bi bi-list"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Main content area -->
+            <div class="col-md-9 col-lg-10 ms-auto main-content p-4">
+                <!-- Admin-only banner -->
+                <div class="alert alert-info alert-dismissible fade show mb-4" role="alert">
+                    <strong><i class="bi bi-shield-lock me-2"></i>Admin-Only Portal</strong> - This web portal is restricted to administrators only. Employees should use the mobile app.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                
+                <div id="contentArea">
+                    <!-- Content will load here dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loadingOverlay" class="loading-overlay d-none">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Please wait...</p>
+    </div>
+
+    <!-- Toast notifications -->
+    <div class="position-fixed top-0 end-0 p-3" style="z-index: 5">
+        <div id="toastNotification" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <strong class="me-auto" id="toastTitle">Notification</strong>
+                <small id="toastTime">Just now</small>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body" id="toastMessage">
+                This is a notification message.
+            </div>
+        </div>
+    </div>
+
+    <!-- Leave Request Modal -->
+    <div class="modal fade" id="leaveRequestActionModal" tabindex="-1" aria-labelledby="leaveRequestActionModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="leaveRequestActionModalLabel">Leave Request Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Employee</label>
+                        <div id="modalEmployeeName" class="fw-bold">John Doe</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label">Leave Type</label>
+                            <div id="modalLeaveType">Vacation</div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Status</label>
+                            <div><span id="modalLeaveStatus" class="badge bg-warning">Pending</span></div>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label">Start Date</label>
+                            <div id="modalStartDate">2023-01-01</div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">End Date</label>
+                            <div id="modalEndDate">2023-01-05</div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Reason</label>
+                        <div id="modalLeaveReason" class="p-2 bg-light rounded">Family vacation</div>
+                    </div>
+                    <div class="mb-3" id="noteInputContainer">
+                        <label for="adminNote" class="form-label">Admin Note</label>
+                        <textarea class="form-control" id="adminNote" rows="2" placeholder="Optional note for approval/rejection"></textarea>
+                    </div>
+                    <input type="hidden" id="currentLeaveRequestId">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-danger" id="rejectLeaveRequest">Reject</button>
+                    <button type="button" class="btn btn-success" id="approveLeaveRequest">Approve</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <!-- FullCalendar JS -->
+    <script src="fullcalendar.min.js"></script>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+    
+    <!-- Immediate execution to load attendance logs -->
+    <script>
+        // Immediate execution
+        (function() {
+            // Set attendance as current page
+            localStorage.setItem('currentPage', 'attendance');
+            
+            // Check if app.js has finished loading
+            const checkLoaded = setInterval(function() {
+                if (typeof window.showAttendanceLogs === 'function') {
+                    console.log('Forcing immediate redirect to attendance logs');
+                    window.showAttendanceLogs();
+                    clearInterval(checkLoaded);
+                }
+            }, 100);
+            
+            // Failsafe - if not loaded after 2 seconds, reload the page
+            setTimeout(function() {
+                clearInterval(checkLoaded);
+                if (document.querySelector('.text-center.py-5 h3')) {
+                    console.log('Functions not available, reloading page');
+                    window.location.reload();
+                }
+            }, 2000);
+        })();
+    </script>
+    
+    <!-- Direct link handlers -->
+    <script>
+        // Add direct event listeners after the page has loaded
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('Adding direct link handlers');
+            
+            // Initialize sidebar navigation highlight
+            function setActiveNavItem(id) {
+                document.querySelectorAll('.sidebar-content .nav-link, .mobile-menu .nav-link').forEach(link => {
+                    link.classList.remove('active');
+                });
+                
+                const desktopLink = document.getElementById(id);
+                const mobileLink = document.getElementById('mobile' + id.charAt(0).toUpperCase() + id.slice(1));
+                
+                if (desktopLink) {
+                    desktopLink.classList.add('active');
+                }
+                
+                if (mobileLink) {
+                    mobileLink.classList.add('active');
+                }
+                
+                // On mobile, collapse the menu after selection
+                if (window.innerWidth < 768) {
+                    const bsCollapse = new bootstrap.Collapse(document.getElementById('sidebarMenu'));
+                    bsCollapse.hide();
+                }
+            }
+            
+            // Setup event listeners for all nav items
+            const navLinks = {
+                'attendanceLogsLink': 'attendance',
+                'employeesLink': 'employees'
+            };
+            
+            // Add click handlers
+            for (const [linkId, pageName] of Object.entries(navLinks)) {
+                const link = document.getElementById(linkId);
+                if (link) {
+                    link.onclick = function(e) {
+                        e.preventDefault();
+                        console.log(`${linkId} clicked`);
+                        
+                        // Call the appropriate show function
+                        if (pageName === 'attendance' && typeof window.showAttendanceLogs === 'function') {
+                            window.showAttendanceLogs();
+                        } else if (pageName === 'employees' && typeof window.showEmployeesList === 'function') {
+                            window.showEmployeesList();
+                        }
+                        
+                        // Set this link as active
+                        setActiveNavItem(linkId);
+                        
+                        // Store current page
+                        localStorage.setItem('currentPage', pageName);
+                        
+                        return false;
+                    };
+                }
+            }
+            
+            // Logout button event handler
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) {
+                logoutBtn.onclick = function(e) {
+                    e.preventDefault();
+                    console.log('Logout clicked');
+                    if (typeof window.handleLogout === 'function') {
+                        window.handleLogout();
+                    } else {
+                        localStorage.removeItem('currentUser');
+                        window.location.href = 'login.html';
+                    }
+                    return false;
+                };
+            }
+            
+            // Initialize active state based on current page
+            const currentPage = localStorage.getItem('currentPage') || 'attendance';
+            for (const [linkId, pageName] of Object.entries(navLinks)) {
+                if (pageName === currentPage) {
+                    setActiveNavItem(linkId);
+                    break;
+                }
+            }
+            
+            // Force redirect to attendance logs on initial load
+            setTimeout(function() {
+                // Check if we're still on the welcome screen
+                const welcomeMessage = document.querySelector('.text-center.py-5 h3');
+                if (welcomeMessage && welcomeMessage.textContent.includes('Welcome to AttendEase')) {
+                    console.log('Still on welcome screen, forcing redirect to attendance logs');
+                    if (typeof window.showAttendanceLogs === 'function') {
+                        window.showAttendanceLogs();
+                        setActiveNavItem('attendanceLogsLink');
+                    }
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html> 
