@@ -1,4 +1,5 @@
-# Attendance App
+# Attendance App 2.0
+
 
 A mobile application built with React Native and Expo for managing attendance.
 
