@@ -74,9 +74,10 @@ export default function LoginScreen({ navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
+
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <Text style={styles.title}>Welcome Back</Text>
-        <Text style={styles.subtitle}>Login to your account</Text>
+        <Text style={styles.title}>Login</Text>
+        <Text style={styles.subtitle}>Sign in to your account</Text>
         
         <View style={styles.formContainer}>
           {errorMessage ? (
@@ -136,11 +137,13 @@ export default function LoginScreen({ navigation }) {
             )}
           </TouchableOpacity>
 
-          <View style={styles.infoContainer}>
+          {/* <View style={styles.infoContainer}>
             <Text style={styles.infoText}>New users should contact their administrator to create an account.</Text>
-          </View>
+          </View> */}
         </View>
       </ScrollView>
+      
+
     </KeyboardAvoidingView>
   );
 }
@@ -170,7 +173,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   title: {
-    fontSize: 36,
+    fontSize: 45,
     fontWeight: 'bold',
     marginBottom: 5,
     textAlign: 'center',
@@ -188,7 +191,7 @@ const styles = StyleSheet.create({
   errorContainer: {
     backgroundColor: '#ffebee',
     padding: 10,
-    borderRadius: 8,
+    borderRadius: 15,
     marginBottom: 15,
     borderWidth: 1,
     borderColor: '#ef9a9a',
@@ -201,10 +204,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#e1eae3',
-    borderRadius: 20,
+    borderRadius: 15,
     marginBottom: 15,
     borderWidth: 1,
     borderColor: '#ddd',
+    height: 55,
   },
   inputIcon: {
     marginLeft: 15,
@@ -220,11 +224,12 @@ const styles = StyleSheet.create({
   passwordContainer: {
     flexDirection: 'row',
     backgroundColor: '#e1eae3',
-    borderRadius: 20,
+    borderRadius: 15,
     marginBottom: 15,
     borderWidth: 1,
     borderColor: '#ddd',
     alignItems: 'center',
+    height: 55,
   },
   passwordInput: {
     flex: 1,
@@ -238,8 +243,8 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: '#0b3a32',
-    borderRadius: 30,
-    padding: 15,
+    borderRadius: 15,
+    padding: 18,
     alignItems: 'center',
     marginTop: 10,
     opacity: undefined,
@@ -249,14 +254,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  infoContainer: {
+  /* infoContainer: {
     backgroundColor: '#e3f2fd',
     padding: 12,
     borderRadius: 8,
     marginBottom: 15,
-  },
+  },*/
   infoText: {
     color: '#1976d2',
     fontSize: 14,
   },
+
 });
