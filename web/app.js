@@ -905,7 +905,7 @@ function loadEmployeesList(container) {
                                     <th>Employee ID</th>
                                     <th>Department</th>
                                     <th>Position</th>
-                                    <th>Date Added</th>
+                                    <th>Date Hired</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -1325,7 +1325,7 @@ function showEditEmployeeModal(employee) {
     if (!document.getElementById('editEmployeeModal')) {
         const modalHTML = `
             <div class="modal fade" id="editEmployeeModal" tabindex="-1" aria-labelledby="editEmployeeModalLabel" aria-hidden="true">
-                <div class="modal-dialog">
+                <div class="modal-dialog modal-lg">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title" id="editEmployeeModalLabel">Edit Employee</h5>
@@ -1335,9 +1335,19 @@ function showEditEmployeeModal(employee) {
                             <form id="editEmployeeForm">
                                 <input type="hidden" id="editEmployeeId">
                                 
-                                <div class="mb-3">
-                                    <label for="editEmployeeName" class="form-label">Full Name</label>
-                                    <input type="text" class="form-control" id="editEmployeeName" disabled>
+                                <div class="row mb-3">
+                                    <div class="col">
+                                        <label for="editEmployeeFirstName" class="form-label">First Name</label>
+                                        <input type="text" class="form-control" id="editEmployeeFirstName" required>
+                                    </div>
+                                    <div class="col-2">
+                                        <label for="editEmployeeMiddleInitial" class="form-label">M.I.</label>
+                                        <input type="text" class="form-control" id="editEmployeeMiddleInitial" maxlength="1">
+                                    </div>
+                                    <div class="col">
+                                        <label for="editEmployeeLastName" class="form-label">Last Name</label>
+                                        <input type="text" class="form-control" id="editEmployeeLastName" required>
+                                    </div>
                                 </div>
                                 
                                 <div class="mb-3">
@@ -1351,14 +1361,49 @@ function showEditEmployeeModal(employee) {
                                     <small class="form-text text-muted">Employee ID is auto-generated and cannot be changed.</small>
                                 </div>
                                 
-                                <div class="mb-3">
-                                    <label for="editEmployeeDepartment" class="form-label">Department</label>
-                                    <input type="text" class="form-control" id="editEmployeeDepartment" placeholder="Enter department">
+                                <div class="row mb-3">
+                                    <div class="col">
+                                        <label for="editEmployeeDepartment" class="form-label">Department</label>
+                                        <input type="text" class="form-control" id="editEmployeeDepartment" placeholder="Enter department">
+                                    </div>
+                                    <div class="col">
+                                        <label for="editEmployeePosition" class="form-label">Position</label>
+                                        <input type="text" class="form-control" id="editEmployeePosition" placeholder="Enter position">
+                                    </div>
+                                </div>
+                                
+                                <div class="row mb-3">
+                                    <div class="col">
+                                        <label for="editEmployeeGender" class="form-label">Gender</label>
+                                        <select class="form-select" id="editEmployeeGender">
+                                            <option value="">Select Gender</option>
+                                            <option value="Male">Male</option>
+                                            <option value="Female">Female</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="col">
+                                        <label for="editEmployeeType" class="form-label">Employee Type</label>
+                                        <select class="form-select" id="editEmployeeType">
+                                            <option value="">Select Type</option>
+                                            <option value="Full Timer">Full Timer</option>
+                                            <option value="Part Timer">Part Timer</option>
+                                        </select>
+                                    </div>
+                                    <div class="col">
+                                        <label for="editEmployeeSalary" class="form-label">Salary</label>
+                                        <input type="number" class="form-control" id="editEmployeeSalary" step="0.01" min="0">
+                                    </div>
                                 </div>
                                 
                                 <div class="mb-3">
-                                    <label for="editEmployeePosition" class="form-label">Position</label>
-                                    <input type="text" class="form-control" id="editEmployeePosition" placeholder="Enter position">
+                                    <label for="editEmployeeAddress" class="form-label">Address</label>
+                                    <textarea class="form-control" id="editEmployeeAddress" rows="2"></textarea>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="editEmployeePhone" class="form-label">Phone Number</label>
+                                    <input type="text" class="form-control" id="editEmployeePhone" placeholder="Enter phone number">
                                 </div>
                                 
                                 <div class="alert alert-success d-none" id="editSuccessAlert">
@@ -1395,11 +1440,18 @@ function showEditEmployeeModal(employee) {
     
     // Populate modal with employee data
     document.getElementById('editEmployeeId').value = employeeData.id;
-    document.getElementById('editEmployeeName').value = employeeData.full_name || '';
+    document.getElementById('editEmployeeFirstName').value = employeeData.first_name || '';
+    document.getElementById('editEmployeeMiddleInitial').value = employeeData.middle_initial || '';
+    document.getElementById('editEmployeeLastName').value = employeeData.last_name || '';
     document.getElementById('editEmployeeEmail').value = employeeData.email || '';
     document.getElementById('editEmployeeCustomId').value = employeeData.custom_id || '';
     document.getElementById('editEmployeeDepartment').value = employeeData.department || '';
     document.getElementById('editEmployeePosition').value = employeeData.position || '';
+    document.getElementById('editEmployeeGender').value = employeeData.gender || '';
+    document.getElementById('editEmployeeType').value = employeeData.emp_type || '';
+    document.getElementById('editEmployeeSalary').value = employeeData.salary || '';
+    document.getElementById('editEmployeeAddress').value = employeeData.address || '';
+    document.getElementById('editEmployeePhone').value = employeeData.phone_number || '';
     
     // Show the modal
     const modal = new bootstrap.Modal(document.getElementById('editEmployeeModal'));
@@ -1410,10 +1462,30 @@ function showEditEmployeeModal(employee) {
 async function saveEmployeeChanges() {
     // Get data from form
     const employeeId = document.getElementById('editEmployeeId').value;
+    const firstName = document.getElementById('editEmployeeFirstName').value.trim();
+    const middleInitial = document.getElementById('editEmployeeMiddleInitial').value.trim();
+    const lastName = document.getElementById('editEmployeeLastName').value.trim();
     const department = document.getElementById('editEmployeeDepartment').value.trim();
     const position = document.getElementById('editEmployeePosition').value.trim();
+    const gender = document.getElementById('editEmployeeGender').value;
+    const empType = document.getElementById('editEmployeeType').value;
+    const salary = document.getElementById('editEmployeeSalary').value.trim();
+    const address = document.getElementById('editEmployeeAddress').value.trim();
+    const phoneNumber = document.getElementById('editEmployeePhone').value.trim();
     
-    console.log('Saving employee changes:', { employeeId, department, position });
+    console.log('Saving employee changes:', { 
+        employeeId, 
+        firstName,
+        middleInitial,
+        lastName,
+        department, 
+        position, 
+        gender, 
+        empType,
+        salary,
+        address,
+        phoneNumber
+    });
     
     // Show loading state
     const saveBtn = document.getElementById('saveEmployeeBtn');
@@ -1435,163 +1507,45 @@ async function saveEmployeeChanges() {
         // Get current user for role/permission checking
         const { data: { session } } = await supabaseClient.auth.getSession();
         const currentUser = session?.user;
-        console.log('Current user:', currentUser);
-        console.log('Current user metadata:', currentUser?.user_metadata);
-        console.log('Current user app_metadata:', currentUser?.app_metadata);
-        console.log('Editing employee:', employee);
         
-        // Get current user's profile to check role
-        const { data: currentProfile, error: profileError } = await supabaseClient
-            .from('profiles')
-            .select('role')
-            .eq('id', currentUser.id)
-            .single();
-            
-        console.log('Current user profile:', currentProfile, profileError);
-        const isAdmin = 
-            currentProfile?.role === 'admin' || 
-            currentUser?.app_metadata?.role === 'admin' ||
-            currentUser?.user_metadata?.role === 'admin';
-        
-        // Check relationship to ensure policy will work
-        if (!isAdmin && employee.company_id !== currentUser.id) {
-            console.warn('Employee company_id doesn\'t match current user ID and user is not admin. This may cause permission issues.');
+        if (!currentUser) {
+            throw new Error('You must be logged in to edit employees');
         }
         
         // Create update object
         const updateData = {
+            first_name: firstName,
+            middle_initial: middleInitial,
+            last_name: lastName,
             department: department,
             position: position,
+            gender: gender,
+            emp_type: empType,
+            salary: salary ? parseFloat(salary) : null,
+            address: address,
+            phone_number: phoneNumber,
             updated_at: new Date().toISOString()
         };
+        
         console.log('Update data:', updateData);
         
-        // Try multiple update methods to ensure changes are saved
-        
-        // Method 1: Direct update on profiles table with detailed error handling
-        let updateSuccess = false;
-        console.log('Method 1: Trying direct update on profiles table');
-        try {
-            const { data: updateResult, error: updateError } = await supabaseClient
-                .from('profiles')
-                .update(updateData)
-                .eq('id', employeeId)
-                .select();
-                
-            if (updateError) {
-                console.error('Direct update failed:', updateError);
-                throw updateError;
-            } else {
-                console.log('Direct update succeeded:', updateResult);
-                updateSuccess = true;
-            }
-        } catch (directUpdateError) {
-            console.error('Exception during direct update:', directUpdateError);
+        // Update the profile
+        const { error: updateError } = await supabaseClient
+            .from('profiles')
+            .update(updateData)
+            .eq('id', employeeId);
             
-            // Method 2: Try with force_create_profile RPC
-            try {
-                console.log('Method 2: Trying force_create_profile RPC');
-                const { data: forceResult, error: forceError } = await supabaseClient.rpc('force_create_profile', {
-                    user_id: employeeId,
-                    user_email: employee.email,
-                    user_role: employee.role || 'employee',
-                    first_name: employee.first_name,
-                    last_name: employee.last_name,
-                    middle_initial: employee.middle_initial || null,
-                    address: employee.address || null,
-                    phone_number: employee.phone_number || null,
-                    department: department,
-                    position: position,
-                    custom_id: employee.custom_id, // Keep existing custom_id
-                    company_id: employee.company_id
-                });
-                
-                if (forceError) {
-                    console.error('force_create_profile failed:', forceError);
-                    throw forceError;
-                } else {
-                    console.log('Update via force_create_profile succeeded:', forceResult);
-                    updateSuccess = true;
-                }
-            } catch (forceError) {
-                console.error('Exception using force_create_profile:', forceError);
-                
-                // Method 3: Use admin-specific direct SQL if the user is admin
-                if (isAdmin) {
-                    try {
-                        console.log('Method 3a: Trying admin direct SQL update');
-                        const escapedDepartment = department.replace(/'/g, "''");
-                        const escapedPosition = position.replace(/'/g, "''");
-                        
-                        const sql = `
-                        UPDATE public.profiles 
-                        SET department = '${escapedDepartment}', 
-                            position = '${escapedPosition}',
-                            updated_at = now() 
-                        WHERE id = '${employeeId}'
-                        RETURNING *;
-                        `;
-                        
-                        const { data: sqlResult, error: sqlError } = await supabaseClient.rpc('exec_sql', {
-                            sql_string: sql
-                        });
-                        
-                        if (sqlError) {
-                            console.error('Admin SQL update failed:', sqlError);
-                            throw sqlError;
-                        } else {
-                            console.log('Admin SQL update succeeded:', sqlResult);
-                            updateSuccess = true;
-                        }
-                    } catch (adminSqlError) {
-                        console.error('Exception in admin SQL update:', adminSqlError);
-                    }
-                }
-                
-                // Method 4: Last resort - try a simpler update with fewer fields
-                if (!updateSuccess) {
-                    try {
-                        console.log('Method 4: Trying simplified update');
-                        const { data: simpleResult, error: simpleError } = await supabaseClient
-                            .from('profiles')
-                            .update({
-                                department: department,
-                                position: position
-                            })
-                            .eq('id', employeeId);
-                            
-                        if (simpleError) {
-                            console.error('Simplified update failed:', simpleError);
-                            throw simpleError;
-                        } else {
-                            console.log('Simplified update succeeded:', simpleResult);
-                            updateSuccess = true;
-                        }
-                    } catch (simpleError) {
-                        console.error('All update methods failed:', simpleError);
-                        throw new Error('Failed to update employee after trying all methods. See console for details.');
-                    }
-                }
-            }
-        }
-        
-        if (!updateSuccess) {
-            throw new Error('Failed to update employee data after trying multiple methods');
+        if (updateError) {
+            console.error('Error updating employee:', updateError);
+            throw new Error(`Failed to update employee: ${updateError.message}`);
         }
         
         // Show success message
         document.getElementById('editSuccessAlert').classList.remove('d-none');
         document.getElementById('editSuccessAlert').textContent = 'Employee updated successfully!';
         
-        console.log('Update successful, refreshing data...');
-        
-        // Always refresh the entire employee list to ensure changes are reflected
-        try {
-            await fetchEmployeesList();
-            console.log('Employee list refreshed successfully');
-        } catch (refreshError) {
-            console.warn('Could not refresh employee list:', refreshError);
-        }
+        // Refresh the employee list
+        await fetchEmployeesList();
         
         // Close modal after successful update
         setTimeout(() => {
@@ -1599,15 +1553,10 @@ async function saveEmployeeChanges() {
             if (modal) {
                 modal.hide();
             }
-            
-            // Add a delayed refresh as a failsafe
-            setTimeout(() => {
-                fetchEmployeesList();
-            }, 1500);
         }, 1500);
         
     } catch (err) {
-        console.error('Exception updating employee:', err);
+        console.error('Error updating employee:', err);
         const errorAlert = document.getElementById('editErrorAlert');
         errorAlert.textContent = `Error: ${err.message}`;
         errorAlert.classList.remove('d-none');
@@ -1666,7 +1615,7 @@ function showRegisterEmployeeModal() {
                             <form id="registerEmployeeForm">
                                 <div class="row mb-3">
                                     <div class="col">
-                                        <label for="employeeFirstName" class="form-label">First Name *</label>
+                                        <label for="employeeFirstName" class="form-label">First Name</label>
                                         <input type="text" class="form-control" id="employeeFirstName" required>
                                     </div>
                                     <div class="col-2">
@@ -1674,20 +1623,29 @@ function showRegisterEmployeeModal() {
                                         <input type="text" class="form-control" id="employeeMiddleInitial" maxlength="1">
                                     </div>
                                     <div class="col">
-                                        <label for="employeeLastName" class="form-label">Last Name *</label>
+                                        <label for="employeeLastName" class="form-label">Last Name</label>
                                         <input type="text" class="form-control" id="employeeLastName" required>
                                     </div>
+                                </div>
+                                <div class="col mb-3">
+                                    <label for="employeeGender" class="form-label">Gender</label>
+                                    <select class="form-select" id="employeeGender">
+                                        <option value="">Select Gender</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                        <option value="other">Other</option>
+                                    </select>
                                 </div>
                                 <div class="alert alert-info mb-3">
                                     <i class="bi bi-info-circle me-2"></i>
                                     Employee ID will be automatically generated after registration.
                                 </div>
                                 <div class="mb-3">
-                                    <label for="employeeEmail" class="form-label">Email Address *</label>
+                                    <label for="employeeEmail" class="form-label">Email Address</label>
                                     <input type="email" class="form-control" id="employeeEmail" required>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="employeePassword" class="form-label">Password *</label>
+                                    <label for="employeePassword" class="form-label">Password</label>
                                     <input type="password" class="form-control" id="employeePassword" required>
                                     <div class="form-text">Minimum 6 characters.</div>
                                 </div>
@@ -1697,7 +1655,7 @@ function showRegisterEmployeeModal() {
                                 </div>
                                 <div class="mb-3">
                                     <label for="employeePhoneNumber" class="form-label">Phone Number</label>
-                                    <input type="text" class="form-control" id="employeePhoneNumber">
+                                    <input type="number" class="form-control" id="employeePhoneNumber">
                                 </div>
                                 <div class="row mb-3">
                                     <div class="col">
@@ -1709,13 +1667,26 @@ function showRegisterEmployeeModal() {
                                         <input type="text" class="form-control" id="employeePosition">
                                     </div>
                                 </div>
-                                <div class="mb-3">
-                                    <label for="employeeRole" class="form-label">Role *</label>
-                                    <select class="form-select" id="employeeRole" required>
-                                        <option value="employee">Employee</option>
+                                <div class="row mb-3">
+                                    <div class="col">
+                                        <label for="employeeRole" class="form-label">Role</label>
+                                        <select class="form-select" id="employeeRole" required>
+                                            <option value="employee">Employee</option>
                                         <option value="admin">Admin</option>
                                     </select>
                                 </div>
+                                <div class="col mb-3">
+                                    <label for="employeeType" class="form-label">Type of Employee</label>
+                                    <select class="form-select" id="employeeType">
+                                        <option value="">Select Type</option>
+                                        <option value="Full Timer">Full Timer</option>
+                                        <option value="Part Timer">Part Timer</option>
+                                    </select>
+                                </div>
+                                    <div class="mb-3">
+                                        <label for="employeeSalary" class="form-label">Salary</label>
+                                        <input type="number" class="form-control" id="employeeSalary">
+                                    </div>
                             </form>
                         </div>
                         <div class="modal-footer">
@@ -1752,9 +1723,12 @@ async function registerEmployee() {
         const address = document.getElementById('employeeAddress').value.trim();
         const phoneNumber = document.getElementById('employeePhoneNumber').value.trim();
         const department = document.getElementById('employeeDepartment').value.trim();
-        const position = document.getElementById('employeePosition').value.trim();
+        const position = document.getElementById('employeePosition').value.trim();              
+        const salary = document.getElementById('employeeSalary').value.trim();
         const role = document.getElementById('employeeRole').value;
-        
+        const gender = document.getElementById('employeeGender').value;
+        const empType = document.getElementById('employeeType').value;
+
         // Validate required fields
         if (!firstName || !lastName || !email || !password || !role) {
             showToast('Validation Error', 'Please fill in all required fields.', 'danger');
@@ -1769,9 +1743,6 @@ async function registerEmployee() {
         
         // Show loading
         showLoading(true);
-        
-        // Let the database auto-generate the employee ID via trigger
-        // No need to generate it here anymore
         
         console.log('Register employee: Starting registration process', {firstName, lastName, email, role});
         
@@ -1827,7 +1798,6 @@ async function registerEmployee() {
                         last_name: lastName,
                         company_id: company_id,
                         role: role
-                        // No need to set custom_id here, the database trigger will handle it
                     }
                 }
             });
@@ -1846,132 +1816,28 @@ async function registerEmployee() {
             userCreated = true;
             userId = signUpData.user.id;
             
-            // 2. Create the profile record
+            // 2. Create the profile record using force_create_profile
             console.log('Register employee: Creating profile record');
-            const profileData = {
-                id: signUpData.user.id,
-                email: email,
-                role: role,
+            const { data: profileData, error: profileError } = await supabaseClient.rpc('force_create_profile', {
+                user_id: signUpData.user.id,
+                user_email: email,
+                user_role: role,
                 first_name: firstName,
                 last_name: lastName,
-                middle_initial: middleInitial,
-                address: address,
-                phone_number: phoneNumber,
-                position: position,
-                department: department,
-                // Let the database trigger set custom_id automatically
-                company_id: company_id,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-                full_name: `${firstName} ${middleInitial ? middleInitial + '. ' : ''}${lastName}`
-            };
+                middle_initial: middleInitial || null,
+                address: address || null,
+                phone_number: phoneNumber || null,
+                gender: gender || null,
+                emp_type: empType || null,
+                department: department || null,
+                position: position || null,
+                salary: salary || null,
+                company_id: company_id
+            });
             
-            // Try multiple approaches to create the profile
-            let profileCreated = false;
-            
-            try {
-                // Approach 1: Try direct insert first
-                console.log('Register employee: Trying direct insert first');
-                const { error: directInsertError } = await supabaseClient
-                    .from('profiles')
-                    .insert(profileData);
-                    
-                if (!directInsertError) {
-                    console.log('Register employee: Direct insert successful');
-                    profileCreated = true;
-                } else {
-                    console.warn('Register employee: Direct insert failed', directInsertError);
-                    
-                    // Approach 2: Try using the new force_create_profile function
-                    console.log('Register employee: Trying force_create_profile function');
-                    const { data: forceProfileData, error: forceProfileError } = await supabaseClient.rpc('force_create_profile', {
-                        user_id: signUpData.user.id,
-                        user_email: email,
-                        user_role: role,
-                        first_name: firstName,
-                        last_name: lastName,
-                        middle_initial: middleInitial || null,
-                        address: address || null,
-                        phone_number: phoneNumber || null,
-                        department: department || null,
-                        position: position || null,
-                        company_id: company_id
-                        // Omit custom_id to let the database trigger handle it
-                    });
-                    
-                    if (!forceProfileError) {
-                        console.log('Register employee: force_create_profile successful', forceProfileData);
-                        profileCreated = true;
-                    } else {
-                        console.warn('Register employee: force_create_profile failed', forceProfileError);
-                        
-                        // Approach 3: Try using RPC function 
-                        console.log('Register employee: Trying RPC function');
-                        const { error: rpcError } = await supabaseClient.rpc('create_profile_for_user', {
-                            user_id: signUpData.user.id,
-                            user_email: email,
-                            user_role: role,
-                            user_full_name: `${firstName} ${middleInitial ? middleInitial + '. ' : ''}${lastName}`,
-                            company_id: company_id
-                        });
-                        
-                        if (!rpcError) {
-                            console.log('Register employee: RPC function successful');
-                            profileCreated = true;
-                        } else {
-                            console.warn('Register employee: RPC function failed', rpcError);
-                            
-                            // Approach 4: Try inserting into profiles_view as a last resort
-                            console.log('Register employee: Trying profiles_view insert');
-                            const { error: viewInsertError } = await supabaseClient
-                                .from('profiles_view')
-                                .insert(profileData);
-                                
-                            if (!viewInsertError) {
-                                console.log('Register employee: View insert successful');
-                                profileCreated = true;
-                            } else {
-                                console.error('Register employee: All profile creation methods failed', viewInsertError);
-                                
-                                // Final approach: Try using SQL directly as a last resort
-                                console.log('Register employee: Attempting direct SQL insert as final fallback');
-                                try {
-                                    const { error: sqlError } = await supabaseClient.rpc('exec_sql', {
-                                        sql_query: `
-                                        INSERT INTO public.profiles (
-                                            id, email, role, full_name, company_id, created_at, updated_at
-                                        ) VALUES (
-                                            '${signUpData.user.id}',
-                                            '${email}',
-                                            '${role}',
-                                            '${firstName} ${middleInitial ? middleInitial + '. ' : ''}${lastName}',
-                                            '${company_id}',
-                                            now(),
-                                            now()
-                                        ) ON CONFLICT (id) DO NOTHING;
-                                        `
-                                    });
-                                    
-                                    if (sqlError) {
-                                        console.error('Register employee: Direct SQL insert failed', sqlError);
-                                    } else {
-                                        console.log('Register employee: Direct SQL insert successful');
-                                        profileCreated = true;
-                                    }
-                                } catch (sqlExecError) {
-                                    console.error('Register employee: SQL execution exception', sqlExecError);
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (profileError) {
-                console.error('Register employee: Profile creation exception:', profileError);
-                // Don't throw, just log the error
-            }
-            
-            if (!profileCreated) {
-                console.warn('Register employee: Could not create profile, but user was created. Continuing anyway.');
+            if (profileError) {
+                console.error('Register employee: Profile creation error', profileError);
+                throw new Error(`Failed to create profile: ${profileError.message}`);
             }
             
             // Success - show message and close modal
@@ -1984,24 +1850,10 @@ async function registerEmployee() {
             
             // Refresh employee list
             fetchEmployeesList();
+            
         } catch (error) {
             console.error('Error in registration process:', error);
-            
-            // If user was created but profile failed, show a partial success message
-            if (userCreated && userId) {
-                showToast('Partial Success', `User account created but profile may be incomplete. User can still login.`, 'warning');
-                
-                // Hide modal
-                const registerEmployeeModal = document.getElementById('registerEmployeeModal');
-                const modal = bootstrap.Modal.getInstance(registerEmployeeModal);
-                modal.hide();
-                
-                // Refresh employee list
-                fetchEmployeesList();
-            } else {
-                // Complete failure
-                showToast('Registration Error', `${error.message || 'Unexpected error occurred'}`, 'danger');
-            }
+            showToast('Registration Error', `${error.message || 'Unexpected error occurred'}`, 'danger');
         } finally {
             // Restore the original session to make sure we're still logged in as admin
             try {
@@ -2016,11 +1868,11 @@ async function registerEmployee() {
                 console.error('Error restoring session:', sessionError);
                 // Don't block the process for session errors
             }
+            showLoading(false);
         }
     } catch (error) {
         console.error('Error registering employee:', error);
         showToast('Registration Error', `${error.message || 'Unexpected error occurred'}`, 'danger');
-    } finally {
         showLoading(false);
     }
 }
@@ -2125,7 +1977,7 @@ function generatePdfReport(data) {
     doc.text(`Generated on ${new Date().toLocaleDateString()}`, 105, 22, { align: 'center' });
     
     // Create table
-    const tableColumn = ["Name", "ID", "Department", "Position", "Email"];
+    const tableColumn = ["Name", "ID", "Department", "Position", "Email", "Gender", "Type of Employee", "Salary", "Date Hired", "Status"];
     const tableRows = [];
     
     activeEmployees.forEach(employee => {
@@ -2134,8 +1986,13 @@ function generatePdfReport(data) {
             employee.custom_id || 'N/A',
             employee.department || 'N/A',
             employee.position || 'N/A',
-            employee.email
-        ];
+            employee.email,
+            employee.gender || 'N/A',
+            employee.emp_type || 'N/A',
+            employee.salary || 'N/A',
+            employee.created_at || 'N/A',
+            employee.archived ? 'Archived' : 'Active'
+        ];      
         tableRows.push(employeeData);
     });
     
@@ -2177,9 +2034,12 @@ function generateExcelReport(data) {
             'Email': employee.email,
             'Department': employee.department || 'N/A',
             'Position': employee.position || 'N/A',
+            'Salary': employee.salary || 'N/A',
             'Address': employee.address || 'N/A',
             'Phone Number': employee.phone_number || 'N/A',
-            'Hired Date': new Date(employee.created_at).toLocaleDateString()
+            'Gender': employee.gender || 'N/A',
+            'Type of Employee': employee.emp_type || 'N/A',
+            'Date Hired': new Date(employee.created_at).toLocaleDateString()
         };
     }));
     
@@ -2246,6 +2106,7 @@ async function ensureTablesExist() {
                         phone_number TEXT,
                         position TEXT,
                         department TEXT,
+                        salary NUMERIC,
                         custom_id TEXT UNIQUE,
                         role TEXT NOT NULL DEFAULT 'employee',
                         company_id UUID,
@@ -2259,7 +2120,10 @@ async function ensureTablesExist() {
                     CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
                     CREATE INDEX IF NOT EXISTS idx_profiles_archived ON public.profiles(archived);
                     CREATE INDEX IF NOT EXISTS idx_profiles_department ON public.profiles(department);
-                    
+                    CREATE INDEX IF NOT EXISTS idx_profiles_gender ON public.profiles(gender);
+                    CREATE INDEX IF NOT EXISTS idx_profiles_type ON public.profiles(type);
+                
+
                     -- Enable Row Level Security
                     ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
                     
@@ -2289,7 +2153,9 @@ async function ensureTablesExist() {
                 user_id: '00000000-0000-0000-0000-000000000000',
                 user_email: 'test@example.com',
                 user_role: 'test',
-                user_full_name: 'Test User'
+                user_full_name: 'Test User',
+                user_gender: 'male',
+                user_type: 'full_timer'
             });
             
             // If we get a foreign key error, that means the function exists but failed due to invalid UUID
@@ -2304,6 +2170,8 @@ async function ensureTablesExist() {
                         user_email TEXT,
                         user_role TEXT,
                         user_full_name TEXT,
+                        user_gender TEXT,
+                        user_type TEXT,
                         company_id UUID DEFAULT NULL
                     ) RETURNS void AS $$
                     BEGIN
@@ -2313,6 +2181,8 @@ async function ensureTablesExist() {
                             email,
                             role,
                             full_name,
+                            gender,
+                            type,
                             company_id,
                             created_at,
                             updated_at
@@ -2322,6 +2192,8 @@ async function ensureTablesExist() {
                             user_email,
                             user_role,
                             user_full_name,
+                            user_gender,
+                            user_type,
                             company_id,
                             now(),
                             now()
@@ -2430,10 +2302,60 @@ function showEmployeeDetailsModal(employee) {
                                     <h3 id="detailsName" class="mb-1"></h3>
                                     <div class="d-flex align-items-center mb-2">
                                         <span id="detailsEmployeeId" class="badge bg-primary me-2"></span>
-                                        <span id="detailsRole" class="badge bg-secondary"></span>
+                                        <span id="detailsRole" class="badge bg-secondary me-2"></span>
                                         <span id="detailsStatus" class="ms-2"></span>
                                     </div>
                                     <p id="detailsEmail" class="text-muted mb-0"></p>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <h5 class="card-title mb-0">Personal Information</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Employee ID</label>
+                                                <p id="detailsCustomId"></p>
+                                            </div> 
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Full Name</label>
+                                                <p id="detailsFullName"></p>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Gender</label>
+                                                <p id="detailsGender"></p>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Employee Type</label>
+                                                <p id="detailsType"></p>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Salary</label>
+                                                <p id="detailsSalary"></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <h5 class="card-title mb-0">Contact Information</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Phone Number</label>
+                                                <p id="detailsPhone"></p>
+                                            </div>
+                                            <div>
+                                                <label class="form-label fw-bold">Address</label>
+                                                <p id="detailsAddress"></p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -2446,54 +2368,24 @@ function showEmployeeDetailsModal(employee) {
                                         <div class="card-body">
                                             <div class="mb-3">
                                                 <label class="form-label fw-bold">Department</label>
-                                                <p id="detailsDepartment">-</p>
+                                                <p id="detailsDepartment"></p>
                                             </div>
                                             <div class="mb-3">
                                                 <label class="form-label fw-bold">Position</label>
-                                                <p id="detailsPosition">-</p>
+                                                <p id="detailsPosition"></p>
                                             </div>
-                                            <div>
-                                                <label class="form-label fw-bold">Date Hired</label>
-                                                <p id="detailsDateHired">-</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="card mb-3">
-                                        <div class="card-header bg-light">
-                                            <h5 class="card-title mb-0">Contact Information</h5>
-                                        </div>
-                                        <div class="card-body">
                                             <div class="mb-3">
-                                                <label class="form-label fw-bold">Phone Number</label>
-                                                <p id="detailsPhone">-</p>
+                                                <label class="form-label fw-bold">Date Hired</label>
+                                                <p id="detailsDateHired"></p>
                                             </div>
                                             <div>
-                                                <label class="form-label fw-bold">Address</label>
-                                                <p id="detailsAddress">-</p>
+                                                <label class="form-label fw-bold">Last Updated</label>
+                                                <p id="detailsLastUpdated"></p>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                            
-                            <div class="card">
-                                <div class="card-header bg-light">
-                                    <h5 class="card-title mb-0">Additional Information</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label fw-bold">Last Updated</label>
-                                            <p id="detailsLastUpdated">-</p>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label fw-bold">UUID</label>
-                                            <p id="detailsUuid" class="text-truncate">-</p>
-                                        </div>
-                                    </div>
-                                </div>
+                                
                             </div>
                         </div>
                     </div>
@@ -2507,23 +2399,44 @@ function showEmployeeDetailsModal(employee) {
     // Store the current employee details for the edit button
     window.currentEmployeeDetails = employee;
     
+    // Format salary with currency
+    const formatSalary = (salary) => {
+        if (!salary) return '-';
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'PHP'
+        }).format(salary);
+    };
+    
+    // Format date
+    const formatDate = (dateString) => {
+        if (!dateString) return '-';
+        return new Date(dateString).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    };
+    
     // Populate modal with employee data
     document.getElementById('detailsName').textContent = employee.full_name || 'No Name';
+    document.getElementById('detailsFullName').textContent = employee.full_name || 'No Name';
     document.getElementById('detailsEmployeeId').textContent = employee.custom_id || 'NO ID';
+    document.getElementById('detailsCustomId').textContent = employee.custom_id || 'NO ID';
     document.getElementById('detailsRole').textContent = employee.role || 'employee';
+    document.getElementById('detailsGender').textContent = employee.gender || 'N/A';
+    document.getElementById('detailsType').textContent = employee.emp_type || 'N/A';
     document.getElementById('detailsStatus').innerHTML = employee.archived ? 
         '<span class="badge bg-secondary">Archived</span>' : 
         '<span class="badge bg-success">Active</span>';
-    document.getElementById('detailsEmail').textContent = employee.email || '-';
+    document.getElementById('detailsEmail').textContent = employee.email || 'N/A';
     document.getElementById('detailsDepartment').textContent = employee.department || 'Not Assigned';
     document.getElementById('detailsPosition').textContent = employee.position || 'Not Assigned';
-    document.getElementById('detailsDateHired').textContent = employee.created_at ? 
-        new Date(employee.created_at).toLocaleDateString() : '-';
-    document.getElementById('detailsPhone').textContent = employee.phone_number || '-';
-    document.getElementById('detailsAddress').textContent = employee.address || '-';
-    document.getElementById('detailsLastUpdated').textContent = employee.updated_at ? 
-        new Date(employee.updated_at).toLocaleDateString() : '-';
-    document.getElementById('detailsUuid').textContent = employee.id || '-';
+    document.getElementById('detailsDateHired').textContent = formatDate(employee.created_at);
+    document.getElementById('detailsLastUpdated').textContent = formatDate(employee.updated_at);
+    document.getElementById('detailsPhone').textContent = employee.phone_number || 'N/A';
+    document.getElementById('detailsAddress').textContent = employee.address || 'N/A';
+    document.getElementById('detailsSalary').textContent = formatSalary(employee.salary);
     
     // Set avatar
     const avatarElement = document.getElementById('detailsAvatar');

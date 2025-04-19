@@ -13,7 +13,9 @@ CREATE OR REPLACE FUNCTION public.force_create_profile(
   phone_number TEXT DEFAULT NULL,
   department TEXT DEFAULT NULL,
   position TEXT DEFAULT NULL,
-  company_id UUID DEFAULT NULL
+  company_id UUID DEFAULT NULL,
+  gender TEXT DEFAULT NULL,
+  type TEXT DEFAULT NULL
 ) RETURNS UUID AS $$
 BEGIN
   -- Insert with full error handling
@@ -30,6 +32,8 @@ BEGIN
     position,
     full_name,
     company_id,
+    gender,
+    type,
     created_at
   )
   VALUES (
@@ -45,6 +49,8 @@ BEGIN
     position,
     CONCAT_WS(' ', first_name, CASE WHEN middle_initial IS NOT NULL AND length(middle_initial) > 0 THEN middle_initial || '.' ELSE NULL END, last_name),
     company_id,
+    gender,
+    type,
     now()
   )
   ON CONFLICT (id) DO UPDATE SET
@@ -59,6 +65,8 @@ BEGIN
     position = EXCLUDED.position,
     full_name = EXCLUDED.full_name,
     company_id = EXCLUDED.company_id,
+    gender = EXCLUDED.gender,
+    type = EXCLUDED.type,
     updated_at = now();
   
   RETURN user_id;
