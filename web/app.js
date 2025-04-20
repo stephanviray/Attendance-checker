@@ -688,8 +688,8 @@ async function fetchAttendanceLogs() {
             const checkOutTime = checkOutDate ? checkOutDate.toLocaleTimeString() : '-';
             
             // Determine if check-in is late (after 9 AM)
-            const isLateCheckIn = checkInDate.getHours() > 9 || 
-                                 (checkInDate.getHours() === 9 && checkInDate.getMinutes() > 0);
+            const isLateCheckIn = checkInDate.getHours() > 1 || 
+                                 (checkInDate.getHours() === 1 && checkInDate.getMinutes() > 0);
             
             // Determine if check-out is late (after 5 PM)
             const isLateCheckOut = checkOutDate && 
@@ -993,101 +993,68 @@ async function fetchEmployeesList() {
         console.log('Current user ID:', currentUser.id);
         console.log('Fetching employees...');
         
-        try {
-            // Try multiple approaches to fetch employees
-            let employeeProfiles = null;
-            let fetchError = null;
+        // Get user role
+        const { data: userProfile, error: profileError } = await supabaseClient
+            .from('profiles')
+            .select('role')
+            .eq('id', currentUser.id)
+            .single();
             
-            // First try with proper company_id filter 
-            const { data: companyData, error: companyError } = await supabaseClient
-                .from('profiles')
-                .select('*')
-                .eq('company_id', currentUser.id)
-                .order('full_name');
-                
-            if (!companyError && companyData && companyData.length > 0) {
-                console.log('Successfully fetched employees via company_id:', companyData.length);
-                employeeProfiles = companyData;
-            } else {
-                console.log('Company filter query failed or returned no results:', companyError);
-                fetchError = companyError;
-                
-                // Try with alternative OR condition
-                const { data: employeeData, error: employeeError } = await supabaseClient
-                    .from('profiles')
-                    .select('*')
-                    .or(`company_id.eq.${currentUser.id},role.eq.employee`)
-                    .order('full_name');
-                    
-                if (!employeeError && employeeData && employeeData.length > 0) {
-                    // Filter to only include employees for this company, not the current user
-                    employeeProfiles = employeeData.filter(profile => 
-                        (profile.role === 'employee' && profile.company_id === currentUser.id) || 
-                        profile.id !== currentUser.id
-                    );
-                    
-                    console.log('Successfully fetched employees with OR condition:', employeeProfiles.length);
-                } else {
-                    console.log('OR condition query failed or returned no results:', employeeError);
-                    fetchError = employeeError || fetchError;
-                    
-                    // Try one last approach - just fetching employees with this company_id
-                    const { data: roleData, error: roleError } = await supabaseClient
-                        .from('profiles') 
-                        .select('*')
-                        .eq('role', 'employee')
-                        .eq('company_id', currentUser.id)
-                        .order('full_name');
-                        
-                    if (!roleError && roleData && roleData.length > 0) {
-                        console.log('Successfully fetched employees via role and company_id:', roleData.length);
-                        employeeProfiles = roleData;
-                    } else {
-                        console.log('Role and company_id query failed or returned no results:', roleError);
-                        fetchError = roleError || employeeError || companyError;
-                    }
-                }
-            }
+        if (profileError) {
+            console.error('Error fetching user profile:', profileError);
+            throw new Error('Failed to fetch user profile');
+        }
+        
+        // Build query based on user role
+        let query = supabaseClient
+            .from('profiles')
+            .select(`
+                id,
+                email,
+                first_name,
+                last_name,
+                middle_initial,
+                full_name,
+                address,
+                phone_number,
+                salary,
+                position,
+                department,
+                custom_id,
+                role,
+                company_id,
+                archived,
+                created_at,
+                updated_at,
+                gender,
+                emp_type
+
+            `)
+            .order('full_name');
             
-            // Handle no results case
-            if (!employeeProfiles || employeeProfiles.length === 0) {
-                console.log('No employee profiles found after all attempts');
-                
-                employeesList.innerHTML = `
-                    <tr>
-                        <td colspan="6" class="text-center py-4">
-                            <div class="alert alert-info">
-                                <i class="bi bi-info-circle me-2"></i>
-                                No employees found. Use the Register button to add your first employee.
-                            </div>
-                            <button class="btn btn-primary mt-3" onclick="showRegisterEmployeeModal()">
-                                <i class="bi bi-person-plus-fill me-2"></i>
-                                Register New Employee
-                            </button>
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-            
-            // Store data for filtering
-            window.employeesData = employeeProfiles;
-            console.log(`Fetched ${window.employeesData.length} employee profiles`);
-            
-            // Display employees
-            displayEmployees(window.employeesData);
-            
-            // Update stats and filters
-            updateEmployeeStats(window.employeesData);
-            populateDepartmentFilter(window.employeesData);
-        } catch (queryError) {
-            console.error('Exception during employee query:', queryError);
+        // If user is admin, fetch all employees
+        if (userProfile.role === 'admin') {
+            query = query.eq('role', 'employee');
+        } else {
+            // For company users, fetch only their employees
+            query = query.eq('company_id', currentUser.id);
+        }
+        
+        const { data: employeeProfiles, error: fetchError } = await query;
+        
+        if (fetchError) {
+            console.error('Error fetching employees:', fetchError);
+            throw new Error('Failed to fetch employee data');
+        }
+        
+        if (!employeeProfiles || employeeProfiles.length === 0) {
+            console.log('No employee profiles found');
             employeesList.innerHTML = `
                 <tr>
                     <td colspan="6" class="text-center py-4">
-                        <div class="alert alert-danger">
-                            <i class="bi bi-exclamation-triangle me-2"></i>
-                            Exception: ${queryError.message}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            No employees found. Use the Register button to add your first employee.
                         </div>
                         <button class="btn btn-primary mt-3" onclick="showRegisterEmployeeModal()">
                             <i class="bi bi-person-plus-fill me-2"></i>
@@ -1096,10 +1063,22 @@ async function fetchEmployeesList() {
                     </td>
                 </tr>
             `;
+            return;
         }
         
+        // Store data for filtering
+        window.employeesData = employeeProfiles;
+        console.log(`Fetched ${window.employeesData.length} employee profiles`);
+        
+        // Display employees
+        displayEmployees(window.employeesData);
+        
+        // Update stats and filters
+        updateEmployeeStats(window.employeesData);
+        populateDepartmentFilter(window.employeesData);
+        
     } catch (error) {
-        console.error('Unexpected error in fetchEmployeesList:', error);
+        console.error('Error in fetchEmployeesList:', error);
         const employeesList = document.getElementById('employeesList');
         if (employeesList) {
             employeesList.innerHTML = `
@@ -1107,12 +1086,8 @@ async function fetchEmployeesList() {
                     <td colspan="6" class="text-center py-4">
                         <div class="alert alert-danger">
                             <i class="bi bi-exclamation-triangle me-2"></i>
-                            Unexpected error: ${error.message}
+                            Error: ${error.message}
                         </div>
-                        <button class="btn btn-primary mt-3" onclick="showRegisterEmployeeModal()">
-                            <i class="bi bi-person-plus-fill me-2"></i>
-                            Register New Employee
-                        </button>
                     </td>
                 </tr>
             `;

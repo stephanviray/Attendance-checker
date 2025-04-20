@@ -273,10 +273,10 @@ export default function EmployeeDashboard({ navigation }) {
     // Count the statuses
     Object.values(attendanceByDate).forEach(record => {
       if (record.status) {
-        // If status is 'late', increment originalLate counter
+        // If status is 'late', increment both late and present counters
         if (record.status === 'late') {
+          stats.late = (stats.late || 0) + 1;
           stats.originalLate = (stats.originalLate || 0) + 1;
-          // Count late as present (add to present instead)
           stats.present = (stats.present || 0) + 1;
         } else {
           // For other statuses, count normally
@@ -549,8 +549,8 @@ export default function EmployeeDashboard({ navigation }) {
                     <View style={[styles.statIconContainer, styles.lateIconContainer]}>
                       <Ionicons name="time" size={24} color="#FF9800" />
                     </View>
-                    <Text style={styles.statValue}>{attendanceStats.originalLate || 0}</Text>
-                    <Text style={styles.statLabel}>Late*</Text>
+                    <Text style={styles.statValue}>{attendanceStats.late}</Text>
+                    <Text style={styles.statLabel}>Late</Text>
                   </View>
                   
                   <View style={styles.statCard}>

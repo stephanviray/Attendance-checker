@@ -647,26 +647,33 @@ const ScanScreen = ({ route, navigation }) => {
     }
 
     console.log('Existing attendance records:', existingAttendance);
-
-    // Check if we found an existing record for today
+    
     const existingToday = existingAttendance && existingAttendance.length > 0;
     
     if (clockMode === 'in') {
-      // For clock-in, find if they already checked in
-      const alreadyCheckedIn = existingToday && existingAttendance.some(record => !record.check_out);
+      // For clock-in, check if they already have any check-in for today
+      const hasCheckedInToday = existingAttendance.some(record => {
+        const recordDate = new Date(record.check_in);
+        return recordDate.toDateString() === now.toDateString();
+      });
       
-      if (alreadyCheckedIn) {
-        const latestRecord = existingAttendance.find(record => !record.check_out);
+      if (hasCheckedInToday) {
+        const latestRecord = existingAttendance.find(record => {
+          const recordDate = new Date(record.check_in);
+          return recordDate.toDateString() === now.toDateString();
+        });
+        
         const time = new Date(latestRecord.check_in).toLocaleTimeString('en-US', { 
           timeZone: 'Asia/Manila',
           hour: '2-digit', 
           minute: '2-digit'
         });
         
-        setAttendanceResult({
-          status: 'warning',
-          message: `Already checked in at ${time}`
-        });
+        Alert.alert(
+          'Already Checked In Today',
+          `You have already checked in today at ${time}. You can check in again tomorrow.`,
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
         return;
       }
       
@@ -729,44 +736,47 @@ const ScanScreen = ({ route, navigation }) => {
           [{ text: 'OK', onPress: () => navigation.goBack() }]
         );
       }
-      
     } else {
       // Clock-out mode
-      // Find records that don't have a check-out time
-      const recordsWithoutCheckout = existingAttendance.filter(record => !record.check_out);
-      
-      console.log('Records without checkout:', recordsWithoutCheckout.length, recordsWithoutCheckout);
+      // Find records that don't have a check-out time for today
+      const recordsWithoutCheckout = existingAttendance.filter(record => {
+        const recordDate = new Date(record.check_in);
+        return recordDate.toDateString() === now.toDateString() && !record.check_out;
+      });
       
       if (recordsWithoutCheckout.length === 0) {
-        Alert.alert(
-          'No Active Check-In',
-          existingToday 
-            ? 'All check-ins today already have check-outs recorded.' 
-            : 'You must check in before checking out.',
-          [{ text: 'OK', onPress: () => navigation.goBack() }]
-        );
-        setAttendanceResult({
-          status: 'warning',
-          message: existingToday ? 'Already checked out for all sessions today' : 'Must check in before checking out'
+        // Check if they already checked out today
+        const hasCheckedOutToday = existingAttendance.some(record => {
+          const recordDate = new Date(record.check_in);
+          return recordDate.toDateString() === now.toDateString() && record.check_out;
         });
+        
+        if (hasCheckedOutToday) {
+          Alert.alert(
+            'Already Checked Out Today',
+            'You have already checked out for today. You can check out again tomorrow.',
+            [{ text: 'OK', onPress: () => navigation.goBack() }]
+          );
+        } else {
+          Alert.alert(
+            'No Active Check-In',
+            'You must check in before checking out.',
+            [{ text: 'OK', onPress: () => navigation.goBack() }]
+          );
+        }
         return;
       }
       
       // Update the most recent record with check-out time
       const latestRecord = recordsWithoutCheckout[0];
-      console.log('Updating attendance record with check-out:', latestRecord.id);
-      
-      const updatePayload = {
-        check_out: now.toISOString(),
-        updated_at: now.toISOString()
-      };
-      
-      console.log('Update payload:', updatePayload);
       
       try {
         const { data: updateData, error: updateError } = await supabase
           .from('attendance')
-          .update(updatePayload)
+          .update({
+            check_out: now.toISOString(),
+            updated_at: now.toISOString()
+          })
           .eq('id', latestRecord.id)
           .select();
         
