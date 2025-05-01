@@ -1658,10 +1658,14 @@ function showRegisterEmployeeModal() {
                                         <option value="Part Timer">Part Timer</option>
                                     </select>
                                 </div>
-                                    <div class="mb-3">
-                                        <label for="employeeSalary" class="form-label">Salary</label>
-                                        <input type="number" class="form-control" id="employeeSalary">
-                                    </div>
+                                <div class="col mb-3">
+                                    <label for="employeeSalary" class="form-label">Salary</label>   
+                                    <input type="number" class="form-control" id="employeeSalary" step="0.01" min="0">
+                                </div>
+                                <div class="col mb-3">
+                                    <label for="date" class="form-label">Date Hired</label> 
+                                    <input type="date" id="date" name="date" class="form-control" />
+                                </div>
                             </form>
                         </div>
                         <div class="modal-footer">
