@@ -478,14 +478,14 @@ export default function EmployeeDashboard({ navigation }) {
           style={[styles.sectionTab, activeSection === 'attendance' && styles.activeTab]}
           onPress={() => switchSection('attendance')}
         >
-          <Ionicons name="calendar-outline" size={22} color={activeSection === 'attendance' ? '#1a73e8' : '#666'} />
+          <Ionicons name="calendar-outline" size={22} color={activeSection === 'attendance' ? '#0B3A32' : '#666'} />
           <Text style={[styles.sectionText, activeSection === 'attendance' && styles.activeText]}>Attendance</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.sectionTab, activeSection === 'profile' && styles.activeTab]}
           onPress={() => switchSection('profile')}
         >
-          <Ionicons name="person-outline" size={22} color={activeSection === 'profile' ? '#1a73e8' : '#666'} />
+          <Ionicons name="person-outline" size={22} color={activeSection === 'profile' ? '#0B3A32' : '#666'} />
           <Text style={[styles.sectionText, activeSection === 'profile' && styles.activeText]}>Profile</Text>
         </TouchableOpacity>
       </View>
@@ -755,7 +755,7 @@ export default function EmployeeDashboard({ navigation }) {
                   </TouchableOpacity>
                   
                   <TouchableOpacity style={styles.passwordButton} onPress={handleChangePassword}>
-                    <Ionicons name="key-outline" size={20} color="#fff" />
+                    <Ionicons name="key-outline" size={20} color="#0B3A32" />
                     <Text style={styles.passwordButtonText}>Change Password</Text>
                   </TouchableOpacity>
                 </View>
@@ -945,7 +945,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#1a73e8',
+    backgroundColor: '#0B3A32',
     paddingHorizontal: 20,
     paddingTop: 50,
     paddingBottom: 15,
@@ -984,7 +984,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   activeTab: {
-    borderBottomColor: '#1a73e8',
+    borderBottomColor: '#0B3A32',
   },
   sectionText: {
     fontSize: 16,
@@ -992,7 +992,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   activeText: {
-    color: '#1a73e8',
+    color: '#0B3A32',
     fontWeight: '500',
   },
   mainContent: {
@@ -1046,7 +1046,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1a73e8',
+    backgroundColor: '#0B3A32',
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 6,
@@ -1163,7 +1163,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#1a73e8',
+    backgroundColor: '#0B3A32',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1207,7 +1207,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1a73e8',
+    backgroundColor: '#0B3A32',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 6,
@@ -1223,7 +1223,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#34A853',
+    backgroundColor: '#e1eae3',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 6,
@@ -1231,7 +1231,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   passwordButtonText: {
-    color: '#fff',
+    color: '#0B3A32',
     fontWeight: '500',
     marginLeft: 8,
   },
@@ -1312,7 +1312,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   saveButton: {
-    backgroundColor: '#1a73e8',
+    backgroundColor: '#0B3A32',
     marginLeft: 10,
   },
   saveButtonText: {
@@ -1385,14 +1385,15 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   refreshButton: {
-    backgroundColor: '#1a73e8',
+    backgroundColor: '#0B3A32',
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 4,
+    borderRadius: 8,
   },
   refreshButtonText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 15,
+    padding: 8,
   },
   noteText: {
     fontSize: 12,
@@ -1407,7 +1408,7 @@ const styles = StyleSheet.create({
     padding: 15,
     marginBottom: 10,
     borderLeftWidth: 4,
-    borderLeftColor: '#1a73e8',
+    borderLeftColor: '#0B3A32',
   },
   employeeHeader: {
     flexDirection: 'row',

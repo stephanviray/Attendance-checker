@@ -136,9 +136,6 @@ export default function LoginScreen({ navigation }) {
             )}
           </TouchableOpacity>
 
-          <View style={styles.infoContainer}>
-            <Text style={styles.infoText}>New users should contact their administrator to create an account.</Text>
-          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -254,6 +251,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     marginBottom: 15,
+    marginTop: 20,
   },
   infoText: {
     color: '#1976d2',
