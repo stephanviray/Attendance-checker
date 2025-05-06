@@ -220,11 +220,18 @@ const CompanyScreen = ({ navigation }) => {
         return;
       }
       
+      // Determine status based on time
+      const hour = now.getHours();
+      const minute = now.getMinutes();
+      const isLate = (hour > 9) || (hour === 9 && minute > 0);
+      const isAbsent = hour >= 13;
+      const status = isAbsent ? 'absent' : (isLate ? 'late' : 'present');
+      
       // Create a check-in record
       const attendanceData = {
         employee_id: employeeId,
         check_in: currentTime,
-        status: 'present',
+        status: status,
         recorded_by: user?.id || null
       };
       
@@ -1005,4 +1012,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CompanyScreen; 
+export default CompanyScreen;

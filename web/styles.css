@@ -852,4 +852,43 @@ canvas {
 /* Mobile App Section */
 .mobile-app-section {
     font-size: 0.9rem;
-} 
+}
+
+/* Attendance status styles */
+tr[data-status="late"] {
+    background-color: rgba(255, 193, 7, 0.1);
+}
+
+tr[data-status="late"] td:first-child::before {
+    content: "⚠️";
+    margin-right: 8px;
+}
+
+tr[data-status="absent"] {
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+tr[data-status="absent"] td:first-child::before {
+    content: "❌";
+    margin-right: 8px;
+}
+
+/* Filter button styles */
+.btn-group .btn.active {
+    box-shadow: none;
+}
+
+#filterAll.active {
+    background-color: #6c757d;
+    color: white;
+}
+
+#filterLate.active {
+    background-color: #ffc107;
+    color: black;
+}
+
+#filterAbsent.active {
+    background-color: #dc3545;
+    color: white;
+}
