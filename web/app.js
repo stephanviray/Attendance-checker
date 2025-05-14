@@ -269,16 +269,20 @@ async function loadUserData() {
                 // Try to create a profile
                 try {
                     const { error: createError } = await supabaseClient
-                        .from('profiles')
-                        .insert({
-                            id: userId,
-                            email: currentUser.email,
-                            role: 'company', // Default to company role
-                            full_name: currentUser.user_metadata?.full_name || currentUser.email.split('@')[0] || 'User',
-                            created_at: new Date().toISOString(),
-                            updated_at: new Date().toISOString()
-                        });
-                    
+                    .from('profiles')
+                    .insert({
+                        id: userId,
+                        email: currentUser.email,
+                        role: 'company', // Default to company role
+                        full_name: currentUser.user_metadata?.full_name || currentUser.email.split('@')[0] || 'User',
+                        created_at: new Date().toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long', 
+                            day: 'numeric'
+                        }), // Format date as string: e.g., "May 14, 2025"
+                        updated_at: new Date().toISOString()
+                    });
+
                     if (createError) {
                         console.warn("Could not create profile:", createError);
                         // Continue with localStorage data
@@ -533,12 +537,11 @@ function showAttendanceLogs() {
                                     <th>Date</th>
                                     <th>Check-in</th>
                                     <th>Check-out</th>
-                                    <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody id="attendanceList">
                                 <tr>
-                                    <td colspan="7" class="text-center py-4">
+                                    <td colspan="6" class="text-center py-4">
                                         <div class="spinner-border text-primary" role="status">
                                             <span class="visually-hidden">Loading...</span>
                                         </div>
@@ -574,18 +577,34 @@ function showAttendanceLogs() {
 
 // Fetch attendance logs
 async function fetchAttendanceLogs() {
+    console.log('Fetching attendance logs');
+    
     try {
-        showLoading(true);
+        // Show loading state
         const attendanceList = document.getElementById('attendanceList');
+        if (!attendanceList) {
+            console.error('Attendance list element not found');
+            return;
+        }
         
-        // Get current user session
-        const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+        attendanceList.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading attendance records...</p>
+                </td>
+            </tr>
+        `;
         
-        if (sessionError || !session) {
-            console.error('No active session:', sessionError);
+        // Get current user's company_id
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        if (!currentUser || !currentUser.id) {
+            console.error('No user data found in localStorage');
             attendanceList.innerHTML = `
                 <tr>
-                    <td colspan="7" class="text-center py-4">
+                    <td colspan="6" class="text-center py-4">
                         <div class="alert alert-danger">
                             <i class="bi bi-exclamation-triangle me-2"></i>
                             Error: No user data found
@@ -596,29 +615,45 @@ async function fetchAttendanceLogs() {
             return;
         }
         
-        // Get the selected date
+        // Get the selected date from the date picker
         const datePicker = document.getElementById('attendanceDatePicker');
         const selectedDate = datePicker ? datePicker.value : null;
         
-        // Calculate date range
+        // Calculate date range based on selected date
         let startDate, endDate;
+        
         if (selectedDate) {
             startDate = new Date(selectedDate);
             startDate.setHours(0, 0, 0, 0);
             endDate = new Date(selectedDate);
             endDate.setHours(23, 59, 59, 999);
         } else {
+            // Default to today if no date selected
             startDate = new Date();
             startDate.setHours(0, 0, 0, 0);
             endDate = new Date();
             endDate.setHours(23, 59, 59, 999);
         }
-        
-        // Fetch attendance records
+
+        // First, get all active employees
+        const { data: allEmployees, error: employeesError } = await supabaseClient
+            .from('profiles')
+            .select('id, full_name, department, custom_id')
+            .eq('role', 'employee')
+            .eq('archived', false)
+            .eq('company_id', currentUser.id);
+
+        if (employeesError) throw employeesError;
+
+        // Then get attendance records for the date range
         const { data: attendanceRecords, error: attendanceError } = await supabaseClient
             .from('attendance')
             .select(`
-                *,
+                id,
+                employee_id,
+                check_in,
+                check_out,
+                status,
                 profiles!attendance_employee_id_fkey (
                     id,
                     full_name,
@@ -629,55 +664,116 @@ async function fetchAttendanceLogs() {
             `)
             .gte('check_in', startDate.toISOString())
             .lte('check_in', endDate.toISOString())
-            .order('check_in', { ascending: false });
-            
-        if (attendanceError) {
-            console.error('Error fetching attendance records:', attendanceError);
-            attendanceList.innerHTML = `
-                <tr>
-                    <td colspan="7" class="text-center py-4">
-                        <div class="alert alert-danger">
-                            <i class="bi bi-exclamation-triangle me-2"></i>
-                            Error loading attendance records
-                        </div>
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-        
-        // Filter out records for archived employees
-        const activeAttendanceRecords = attendanceRecords.filter(record => 
-            !record.profiles?.archived
+            .eq('recorded_by', currentUser.id);
+
+        if (attendanceError) throw attendanceError;
+
+        // Create a set of employees who have checked in
+        const checkedInEmployees = new Set(attendanceRecords.map(record => record.employee_id));
+
+        // Create records for absent employees
+        const absentEmployees = allEmployees
+            .filter(emp => !checkedInEmployees.has(emp.id))
+            .map(emp => ({
+                profiles: {
+                    id: emp.id,
+                    full_name: emp.full_name,
+                    department: emp.department,
+                    custom_id: emp.custom_id,
+                    archived: false
+                },
+                check_in: startDate.toISOString(),
+                check_out: null,
+                status: 'absent',
+                employee_id: emp.id
+            }));
+
+        // Combine attendance records with absent records
+        const allRecords = [...attendanceRecords, ...absentEmployees];
+
+        // Filter out archived employees
+        const activeRecords = allRecords.filter(record => 
+            record.profiles && !record.profiles.archived
         );
-        
-        if (activeAttendanceRecords.length === 0) {
+
+        if (!activeRecords || activeRecords.length === 0) {
             attendanceList.innerHTML = `
                 <tr>
-                    <td colspan="7" class="text-center py-4">
+                    <td colspan="6" class="text-center py-4">
                         <div class="alert alert-info">
                             <i class="bi bi-info-circle me-2"></i>
-                            No attendance records found for the selected date
+                            No attendance records found for the selected period.
                         </div>
                     </td>
                 </tr>
             `;
             return;
         }
-        
-        // Format and display records
-        attendanceList.innerHTML = activeAttendanceRecords
-            .map(record => formatAttendanceRecord(record))
-            .join('');
+
+        // Process and display attendance records
+        const attendanceHTML = activeRecords.map(record => {
+            const checkInDate = new Date(record.check_in);
+            const checkOutDate = record.check_out ? new Date(record.check_out) : null;
             
-        // Setup filter buttons after loading records
-        setupFilterButtons();
+            // Format times
+            const checkInTime = record.status === 'absent' ? '-' : checkInDate.toLocaleTimeString();
+            const checkOutTime = checkOutDate ? checkOutDate.toLocaleTimeString() : '-';
+            
+            // Determine status and lateness
+            const status = record.status === 'absent' ? 'absent' : (() => {
+                if (checkInDate.getHours() > 23 || 
+                    (checkInDate.getHours() === 23 && checkInDate.getMinutes() > 0)) {
+                    return 'late';
+                }
+                return 'on-time';
+            })();
+
+            // Calculate lateness text
+            let latenessText = '';
+            if (status === 'late') {
+                const expectedTime = new Date(checkInDate);
+                expectedTime.setHours(23, 0, 0, 0);
+                const lateBy = Math.floor((checkInDate - expectedTime) / (1000 * 60));
+                const lateHours = Math.floor(lateBy / 60);
+                const lateMinutes = lateBy % 60;
+                latenessText = lateHours > 0 ? 
+                    `Late by ${lateHours}h ${lateMinutes}m` : 
+                    `Late by ${lateMinutes}m`;
+            }
+
+            return `
+                <tr data-status="${status}">
+                    <td>${record.profiles.custom_id || record.employee_id}</td>
+                    <td>${record.profiles.full_name || 'Unknown'}</td>
+                    <td>${record.profiles.department || 'General'}</td>
+                    <td>${checkInDate.toLocaleDateString()}</td>
+                    <td class="${status === 'late' ? 'text-warning' : 
+                                status === 'absent' ? 'text-danger' : 
+                                'text-success'}">${checkInTime}
+                        ${status === 'late' ? `<br><small class="text-danger">${latenessText}</small>` : ''}
+                    </td>
+                    <td>${checkOutTime}</td>
+                </tr>
+            `;
+            }).join('');
+
+        attendanceList.innerHTML = attendanceHTML;
         
+        // Setup filter buttons
+        setupFilterButtons();
+
     } catch (error) {
         console.error('Error in fetchAttendanceLogs:', error);
-        showToast('Error', 'Failed to load attendance records', 'danger');
-    } finally {
-        showLoading(false);
+        attendanceList.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-4">
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Error: ${error.message}
+                    </div>
+                </td>
+            </tr>
+        `;
     }
 }
 
@@ -719,85 +815,33 @@ function setupFilterButtons() {
     const filterAll = document.getElementById('filterAll');
     const filterLate = document.getElementById('filterLate');
     const filterAbsent = document.getElementById('filterAbsent');
-    const rows = document.querySelectorAll('#attendanceList tr');
-
-    filterAll.addEventListener('click', () => {
-        filterAll.classList.add('active');
-        filterLate.classList.remove('active');
-        filterAbsent.classList.remove('active');
-        rows.forEach(row => row.style.display = '');
+    
+    [filterAll, filterLate, filterAbsent].forEach(button => {
+        if (button) {
+            button.addEventListener('click', () => {
+                // Remove active class from all buttons
+                document.querySelectorAll('.btn-group .btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    btn.classList.remove('btn-secondary');
+                    btn.classList.remove('btn-warning');
+                    btn.classList.remove('btn-danger');
+                });
+                
+                // Add active class and appropriate color to clicked button
+                button.classList.add('active');
+                if (button.id === 'filterLate') {
+                    button.classList.add('btn-warning');
+                } else if (button.id === 'filterAbsent') {
+                    button.classList.add('btn-danger');
+                } else {
+                    button.classList.add('btn-secondary');
+                }
+                
+                // Apply filters
+                filterAttendanceLogs();
+            });
+        }
     });
-
-    filterLate.addEventListener('click', () => {
-        filterAll.classList.remove('active');
-        filterLate.classList.add('active');
-        filterAbsent.classList.remove('active');
-        rows.forEach(row => {
-            row.style.display = row.dataset.status === 'late' ? '' : 'none';
-        });
-    });
-
-    filterAbsent.addEventListener('click', () => {
-        filterAll.classList.remove('active');
-        filterLate.classList.remove('active');
-        filterAbsent.classList.add('active');
-        rows.forEach(row => {
-            row.style.display = row.dataset.status === 'absent' ? '' : 'none';
-        });
-    });
-}
-
-// Function to format attendance records with status and lateness calculation
-function formatAttendanceRecord(record) {
-    const checkInDate = new Date(record.check_in);
-    const checkOutDate = record.check_out ? new Date(record.check_out) : null;
-    
-    // Format times
-    const checkInTime = checkInDate.toLocaleTimeString();
-    const checkOutTime = checkOutDate ? checkOutDate.toLocaleTimeString() : '-';
-    
-    // Determine if check-in is late (after 9 AM) or absent (1 PM or later)
-    const isLateCheckIn = checkInDate.getHours() > 9 || 
-                         (checkInDate.getHours() === 9 && checkInDate.getMinutes() > 0);
-    
-    // Calculate lateness in minutes if late
-    let latenessText = '';
-    if (isLateCheckIn) {
-        const expectedTime = new Date(checkInDate);
-        expectedTime.setHours(9, 0, 0, 0);
-        const lateBy = Math.floor((checkInDate - expectedTime) / (1000 * 60));
-        const lateHours = Math.floor(lateBy / 60);
-        const lateMinutes = lateBy % 60;
-        latenessText = lateHours > 0 ? 
-            `Late by ${lateHours}h ${lateMinutes}m` : 
-            `Late by ${lateMinutes}m`;
-    }
-    
-    // Consider someone absent if they haven't checked in by 1 PM
-    const isAbsent = checkInDate.getHours() >= 13;
-    
-    // Set the row status for filtering
-    const status = isAbsent ? 'absent' : (isLateCheckIn ? 'late' : 'on-time');
-    const statusBadge = `
-        <span class="badge ${isAbsent ? 'bg-danger' : isLateCheckIn ? 'bg-warning text-dark' : 'bg-success'}">
-            ${isAbsent ? 'Absent' : isLateCheckIn ? 'Late' : 'On Time'}
-        </span>
-    `;
-    
-    return `
-        <tr data-status="${status}">
-            <td>${record.profiles.custom_id || record.employee_id}</td>
-            <td>${record.profiles.full_name || 'Unknown'}</td>
-            <td>${record.profiles.department || 'Not Assigned'}</td>
-            <td>${checkInDate.toLocaleDateString()}</td>
-            <td>
-                ${checkInTime}
-                ${isLateCheckIn ? `<br><small class="text-danger">${latenessText}</small>` : ''}
-            </td>
-            <td>${checkOutTime}</td>
-            <td>${statusBadge}</td>
-        </tr>
-    `;
 }
 
 // Setup date picker
@@ -921,12 +965,12 @@ function loadEmployeesList(container) {
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Employee Directory</h5>
-                    <div class="form-check">
+                    <!-- <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="showArchivedCheck">
                         <label class="form-check-label" for="showArchivedCheck">
                             Show archived employees
                         </label>
-                    </div>
+                    </div> -->
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -981,95 +1025,6 @@ function loadEmployeesList(container) {
     
     // Load employees data
     fetchEmployeesList();
-}
-
-// Function to format date for display
-function formatDateHired(dateString) {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
-}
-
-// Display employees in the table
-function displayEmployees(employees) {
-    console.log('Displaying employees:', employees);
-    
-    const employeesList = document.getElementById('employeesList');
-    if (!employeesList) {
-        console.error('Employees list element not found');
-        return;
-    }
-    
-    if (!employees || employees.length === 0) {
-        employeesList.innerHTML = `
-            <tr>
-                <td colspan="7" class="text-center py-4">
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle me-2"></i>
-                        No employees found. Use the Register button to add your first employee.
-                    </div>
-                    <button class="btn btn-primary mt-3" onclick="showRegisterEmployeeModal()">
-                        <i class="bi bi-person-plus-fill me-2"></i>
-                        Register New Employee
-                    </button>
-                </td>
-            </tr>
-        `;
-        return;
-    }
-    
-    // Clear existing content
-    employeesList.innerHTML = '';
-    
-    // Sort employees by name
-    employees.sort((a, b) => {
-        return (a.full_name || '').localeCompare(b.full_name || '');
-    });
-    
-    // Add each employee to the table
-    employees.forEach(employee => {
-        const initials = getInitials(employee.full_name || employee.email);
-        const dateHired = formatDateHired(employee.created_at);
-        
-        employeesList.innerHTML += `
-            <tr data-id="${employee.id}" class="${employee.archived ? 'table-secondary' : ''}">
-                <td>
-                    <div class="d-flex align-items-center">
-                        <div class="avatar-circle" style="background-color: ${stringToColor(employee.email)}">
-                            ${initials}
-                        </div>
-                        <div class="ms-3">
-                            <div class="fw-bold">${employee.full_name || 'No Name'}</div>
-                            <div class="text-muted small">${employee.email}</div>
-                            ${employee.archived ? '<span class="badge bg-secondary">Archived</span>' : ''}
-                        </div>
-                    </div>
-                </td>
-                <td>
-                    <div class="fw-bold">${employee.custom_id || 'N/A'}</div>
-                </td>
-                <td>${employee.department || 'Not Assigned'}</td>
-                <td>${employee.position || 'Not Assigned'}</td>
-                <td>${dateHired}</td>
-                <td>
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-info" onclick="showEmployeeDetailsModal(${JSON.stringify(employee).replace(/"/g, '&quot;')})">
-                            <i class="bi bi-eye"></i>
-                        </button>
-                        <button class="btn btn-outline-primary" onclick="showEditEmployeeModal(${JSON.stringify(employee).replace(/"/g, '&quot;')})">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn btn-outline-danger" onclick="${employee.archived ? 'restoreEmployee' : 'archiveEmployee'}('${employee.id}')">
-                            <i class="bi ${employee.archived ? 'bi-arrow-counterclockwise' : 'bi-slash-circle'}"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `;
-    });
 }
 
 // Fetch employee list from Supabase
@@ -1214,6 +1169,92 @@ async function fetchEmployeesList() {
             `;
         }
     }
+}
+
+// Display employees in the table
+function displayEmployees(employees) {
+    console.log('Displaying employees:', employees);
+    
+    const employeesList = document.getElementById('employeesList');
+    if (!employeesList) {
+        console.error('Employees list element not found');
+        return;
+    }
+    
+    if (!employees || employees.length === 0) {
+        console.log('No employees to display');
+        employeesList.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-4">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <div>
+                            <strong>No employees found.</strong>
+                            <p>Employees data exists but can't be accessed due to Supabase RLS (Row Level Security) policies.</p>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary mt-3" onclick="showRegisterEmployeeModal()">
+                        <i class="bi bi-person-plus-fill me-2"></i>
+                        Register New Employee
+                    </button>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    // Clear existing content
+    employeesList.innerHTML = '';
+    
+    // Sort employees by name
+    employees.sort((a, b) => {
+        return (a.full_name || '').localeCompare(b.full_name || '');
+    });
+    
+    // Add each employee to the table
+    employees.forEach(employee => {
+        const initials = getInitials(employee.full_name || employee.email);
+        const dateAdded = employee.created_at || 'Not Set';
+        
+        employeesList.innerHTML += `
+            <tr data-id="${employee.id}" class="${employee.archived ? 'table-secondary' : ''}">
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div class="avatar-circle" style="background-color: ${stringToColor(employee.email)}">
+                            ${initials}
+                        </div>
+                        <div class="ms-3">
+                            <div class="fw-bold">${employee.full_name || 'No Name'}</div>
+                            <div class="text-muted small">${employee.email}</div>
+                            ${employee.archived ? '<span class="badge bg-secondary">Archived</span>' : ''}
+                            <div class="fw-bold small mt-1">
+                                <span class="badge bg-primary">${employee.custom_id || 'NO ID'}</span>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="fw-bold">${employee.custom_id || 'N/A'}</div>
+                </td>
+                <td>${employee.department || 'Not Assigned'}</td>
+                <td>${employee.position || 'Not Assigned'}</td>
+                <td>${dateAdded}</td> <!-- Display the date hired as is, since it's now a string -->
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-info" onclick="showEmployeeDetailsModal(${JSON.stringify(employee).replace(/"/g, '&quot;')})">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="showEditEmployeeModal(${JSON.stringify(employee).replace(/"/g, '&quot;')})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="${employee.archived ? 'restoreEmployee' : 'archiveEmployee'}('${employee.id}')">
+                            <i class="bi ${employee.archived ? 'bi-arrow-counterclockwise' : 'bi-slash-circle'}"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
 }
 
 // Helper function to get initials
@@ -1743,11 +1784,19 @@ async function registerEmployee() {
         const role = document.getElementById('employeeRole').value;
         const gender = document.getElementById('employeeGender').value;
         const empType = document.getElementById('employeeType').value;
-        const dateHired = document.getElementById('date').value;
+        const dateAdded = document.getElementById('date').value;
+
+        // Format the date 
+        const formattedDate = new Date(dateAdded).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
 
         // Validate required fields
-        if (!firstName || !lastName || !email || !password || !role || !dateHired) {
-            showToast('Validation Error', 'Please fill in all required fields including Date Hired.', 'danger');
+        if (!firstName || !lastName || !email || !password || !role || !dateAdded) {
+            showToast('Validation Error', 'Please fill in all required fields.', 'danger');
             return;
         }
         
@@ -1832,8 +1881,7 @@ async function registerEmployee() {
             userCreated = true;
             userId = signUpData.user.id;
             
-            // 2. Create the profile record using force_create_profile
-            console.log('Register employee: Creating profile record');
+            // 2. // Create the profile record using force_create_profile with correct parameters
             const { data: profileData, error: profileError } = await supabaseClient.rpc('force_create_profile', {
                 user_id: signUpData.user.id,
                 user_email: email,
@@ -1847,11 +1895,12 @@ async function registerEmployee() {
                 emp_type: empType || null,
                 department: department || null,
                 position: position || null,
-                salary: salary || null,
+                salary: salary ? parseFloat(salary) : null,
+                custom_id: null, // Will be auto-generated by trigger
                 company_id: company_id,
-                created_at: dateHired, // Set the date hired as created_at
-                updated_at: new Date().toISOString()
+                created_at: formattedDate
             });
+
             
             if (profileError) {
                 console.error('Register employee: Profile creation error', profileError);
@@ -1893,7 +1942,7 @@ async function registerEmployee() {
         showToast('Registration Error', `${error.message || 'Unexpected error occurred'}`, 'danger');
         showLoading(false);
     }
-}
+}    
 
 // Replace deleteEmployee with archiveEmployee
 async function archiveEmployee(employeeId) {
@@ -2057,7 +2106,7 @@ function generateExcelReport(data) {
             'Phone Number': employee.phone_number || 'N/A',
             'Gender': employee.gender || 'N/A',
             'Type of Employee': employee.emp_type || 'N/A',
-            'Date Hired': new Date(employee.created_at).toLocaleDateString()
+            'Date Hired': employee.created_at || 'Not Set', // Use the date string directly
         };
     }));
     
@@ -2129,7 +2178,7 @@ async function ensureTablesExist() {
                         role TEXT NOT NULL DEFAULT 'employee',
                         company_id UUID,
                         archived BOOLEAN DEFAULT false,
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                        created_at VARCHAR(50), // Changed from TIMESTAMP WITH TIME ZONE
                         updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
                     );
                     
@@ -2410,7 +2459,7 @@ function showEmployeeDetailsModal(employee) {
                 </div>
             </div>
         `;
-        
+
         document.body.insertAdjacentHTML('beforeend', modalHTML);
     }
     
