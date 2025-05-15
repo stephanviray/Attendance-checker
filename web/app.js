@@ -755,7 +755,7 @@ async function fetchAttendanceLogs() {
                     <td>${checkOutTime}</td>
                 </tr>
             `;
-            }).join('');
+        }).join('');
 
         attendanceList.innerHTML = attendanceHTML;
         
@@ -1246,6 +1246,9 @@ function displayEmployees(employees) {
                         </button>
                         <button class="btn btn-outline-primary" onclick="showEditEmployeeModal(${JSON.stringify(employee).replace(/"/g, '&quot;')})">
                             <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="showEmployeeAttendanceModal('${employee.id}', '${employee.full_name}')">
+                            <i class="bi bi-calendar-check"></i>
                         </button>
                         <button class="btn btn-outline-danger" onclick="${employee.archived ? 'restoreEmployee' : 'archiveEmployee'}('${employee.id}')">
                             <i class="bi ${employee.archived ? 'bi-arrow-counterclockwise' : 'bi-slash-circle'}"></i>
@@ -2516,4 +2519,267 @@ function showEmployeeDetailsModal(employee) {
     modal.show();
 }
 
+// Add after showEmployeeDetailsModal function
+let currentEmployeeId = null;
+let currentEmployeeName = null;
 
+async function showEmployeeAttendanceModal(employeeId, employeeName) {
+    currentEmployeeId = employeeId;
+    currentEmployeeName = employeeName;
+    
+    if (!document.getElementById('employeeAttendanceModal')) {
+        const modalHTML = `
+            <div class="modal fade" id="employeeAttendanceModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Attendance History: <span id="employeeLogsName"></span></h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <!-- Date Range Controls -->
+                            <div class="mb-3">
+                                <div class="d-flex gap-2 align-items-end">
+                                    <div class="flex-grow-1">
+                                        <label class="form-label">Filter by Date Range</label>
+                                        <select class="form-select" id="dateRangeType">
+                                            <option value="week">This Week</option>
+                                            <option value="month">This Month</option>
+                                            <option value="custom">Custom Range</option>
+                                        </select>
+                                    </div>
+                                    <div id="customDateRange" class="d-none">
+                                        <input type="date" id="startDate" class="form-control">
+                                        <input type="date" id="endDate" class="form-control">
+                                    </div>
+                                    <button class="btn btn-primary" onclick="fetchEmployeeLogs()">
+                                        <i class="bi bi-search"></i> View Records
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Attendance Stats Cards -->
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <div class="card bg-success text-white">
+                                        <div class="card-body text-center">
+                                            <h6 class="card-title mb-0">Present</h6>
+                                            <h3 class="mb-0" id="presentCount">0</h3>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card bg-warning text-dark">
+                                        <div class="card-body text-center">
+                                            <h6 class="card-title mb-0">Late</h6>
+                                            <h3 class="mb-0" id="lateCount">0</h3>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card bg-danger text-white">
+                                        <div class="card-body text-center">
+                                            <h6 class="card-title mb-0">Absent</h6>
+                                            <h3 class="mb-0" id="absentCount">0</h3>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Filter Buttons -->
+                            <div class="btn-group mb-3" role="group">
+                                <button type="button" class="btn btn-outline-secondary active" data-filter="all">
+                                    All Records
+                                </button>
+                                <button type="button" class="btn btn-outline-success" data-filter="present">
+                                    Present Only
+                                </button>
+                                <button type="button" class="btn btn-outline-warning" data-filter="late">
+                                    Late Only
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" data-filter="absent">
+                                    Absent Only
+                                </button>
+                            </div>
+
+                            <!-- Attendance Table -->
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Check In</th>
+                                            <th>Check Out</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="employeeLogsTable"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Setup event listeners
+        setupAttendanceModalListeners();
+    }
+    
+    document.getElementById('employeeLogsName').textContent = employeeName;
+    
+    const modal = new bootstrap.Modal(document.getElementById('employeeAttendanceModal'));
+    modal.show();
+    
+    await fetchEmployeeLogs();
+}
+
+async function fetchEmployeeLogs() {
+    const tableBody = document.getElementById('employeeLogsTable');
+    const rangeType = document.getElementById('dateRangeType').value;
+    let startDate, endDate;
+    
+    // Calculate date range
+    const now = new Date();
+    switch(rangeType) {
+        case 'week':
+            startDate = new Date(now);
+            startDate.setDate(now.getDate() - now.getDay()); // Start of week
+            endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + 6); // End of week
+            break;
+            
+        case 'month':
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1); // Start of month
+            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0); // End of month
+            break;
+            
+        case 'custom':
+            startDate = new Date(document.getElementById('startDate').value);
+            endDate = new Date(document.getElementById('endDate').value);
+            if (!startDate || !endDate) {
+                showToast('Error', 'Please select both start and end dates', 'danger');
+                return;
+            }
+            break;
+    }
+    
+    try {
+        // Show loading state
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="4" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </td>
+            </tr>
+        `;
+
+        // First, get all dates in the range to check for absences
+        const dates = [];
+        let currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+            dates.push(new Date(currentDate));
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        // Fetch attendance records
+        const { data: records, error } = await supabaseClient
+            .from('attendance')
+            .select('*')
+            .eq('employee_id', currentEmployeeId)
+            .gte('check_in', startDate.toISOString())
+            .lte('check_in', endDate.toISOString())
+            .order('check_in', { ascending: true });
+
+        if (error) throw error;
+
+        // Create a map of existing attendance records
+        const attendanceMap = new Map();
+        records.forEach(record => {
+            const dateKey = new Date(record.check_in).toDateString();
+            attendanceMap.set(dateKey, record);
+        });
+
+        // Create complete attendance record including absences
+        const completeRecords = dates.map(date => {
+            const dateKey = date.toDateString();
+            const record = attendanceMap.get(dateKey);
+
+            if (record) {
+                // Existing attendance record
+                const checkIn = new Date(record.check_in);
+                // Determine if late (after 9 AM)
+                const isLate = checkIn.getHours() > 9 || 
+                             (checkIn.getHours() === 9 && checkIn.getMinutes() > 0);
+                return {
+                    date: date,
+                    checkIn: checkIn,
+                    checkOut: record.check_out ? new Date(record.check_out) : null,
+                    status: isLate ? 'late' : 'on-time'
+                };
+            } else {
+                // Absent record
+                return {
+                    date: date,
+                    checkIn: null,
+                    checkOut: null,
+                    status: 'absent'
+                };
+            }
+        });
+
+        // Display records
+        // Update the table row generation in fetchEmployeeLogs
+tableBody.innerHTML = completeRecords.map(record => {
+    const statusClass = record.status === 'late' ? 'bg-warning' : 
+                      record.status === 'absent' ? 'bg-danger' : 
+                      'bg-success';
+    
+                return `
+                    <tr>
+                        <td>${record.date.toLocaleDateString()}</td>
+                        <td>${record.status === 'absent' ? '-' : 
+                            record.checkIn.toLocaleTimeString()}</td>
+                        <td>${record.status === 'absent' ? '-' : 
+                            (record.checkOut ? record.checkOut.toLocaleTimeString() : '-')}</td>
+                        <td>
+                            <span class="badge ${statusClass}">
+                                ${record.status.toUpperCase()}
+                                ${record.status === 'late' ? calculateLateness(record.checkIn) : ''}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+    } catch (error) {
+        console.error('Error fetching employee logs:', error);
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="4" class="text-center py-4">
+                    <div class="alert alert-danger mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Error loading attendance records: ${error.message}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// Helper function to calculate lateness
+function calculateLateness(checkInTime) {
+    if (!checkInTime) return '';
+    const expectedTime = new Date(checkInTime);
+    expectedTime.setHours(9, 0, 0, 0);
+    const lateBy = Math.floor((checkInTime - expectedTime) / (1000 * 60));
+    const hours = Math.floor(lateBy / 60);
+    const minutes = lateBy % 60;
+    return hours > 0 ? 
+        ` (${hours}h ${minutes}m late)` : 
+        ` (${minutes}m late)`;
+}
