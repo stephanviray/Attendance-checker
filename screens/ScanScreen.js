@@ -13,6 +13,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { useAuth } from '../utils/AuthContext';
 import { supabase } from '../utils/supabase';
+import { determineAttendanceStatus } from '../utils/attendanceStatus';
 
 const ScanScreen = ({ route, navigation }) => {
   const { user, userRole } = useAuth();
@@ -656,8 +657,7 @@ const ScanScreen = ({ route, navigation }) => {
         const recordDate = new Date(record.check_in);
         return recordDate.toDateString() === now.toDateString();
       });
-      
-      if (hasCheckedInToday) {
+        if (hasCheckedInToday) {
         const latestRecord = existingAttendance.find(record => {
           const recordDate = new Date(record.check_in);
           return recordDate.toDateString() === now.toDateString();
@@ -676,12 +676,8 @@ const ScanScreen = ({ route, navigation }) => {
         );
         return;
       }
-      
-      // Determine status based on time
-      const hour = now.getHours();
-      const minute = now.getMinutes();
-      const isLate = (hour > 9) || (hour === 9 && minute > 0);
-      const status = isLate ? 'late' : 'present';
+      // Use centralized attendance status determination
+      const status = determineAttendanceStatus(now);
       
       // Record check-in
       try {
@@ -711,10 +707,9 @@ const ScanScreen = ({ route, navigation }) => {
         }
         
         console.log('Check-in recorded successfully:', insertData);
-        
-        setAttendanceResult({
+          setAttendanceResult({
           status: 'success',
-          message: isLate ? 'Checked in (Late)' : 'Checked in successfully'
+          message: status === 'late' ? 'Checked in (Late)' : 'Checked in successfully'
         });
         
         // Alert the user about successful check-in
@@ -930,4 +925,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ScanScreen; 
+export default ScanScreen;

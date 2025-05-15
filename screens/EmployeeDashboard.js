@@ -242,7 +242,6 @@ export default function EmployeeDashboard({ navigation }) {
       Alert.alert('Error', 'Could not share sync link.');
     }
   };
-
   // Calculate attendance statistics
   const calculateAttendanceStatistics = (attendanceData) => {
     console.log('Calculating attendance statistics from', attendanceData.length, 'records');
@@ -250,16 +249,41 @@ export default function EmployeeDashboard({ navigation }) {
     // Get unique dates to avoid counting multiple check-ins on the same day
     const attendanceByDate = {};
     
+    // Get the current date
+    const currentDate = new Date();
+    
+    // Get the earliest attendance date or default to 30 days ago
+    const earliestRecord = attendanceData.reduce((earliest, record) => {
+      const recordDate = new Date(record.check_in);
+      return earliest ? (recordDate < earliest ? recordDate : earliest) : recordDate;
+    }, new Date(currentDate.getTime() - (30 * 24 * 60 * 60 * 1000)));
+    
+    // Initialize all working days as absent
+    const allDates = {};
+    let tempDate = new Date(earliestRecord);
+    while (tempDate <= currentDate) {
+      // Skip weekends (0 = Sunday, 6 = Saturday)
+      const dayOfWeek = tempDate.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        const dateStr = tempDate.toISOString().split('T')[0];
+        allDates[dateStr] = { status: 'absent' };
+      }
+      tempDate.setDate(tempDate.getDate() + 1);
+    }
+    
+    // Process actual attendance records
     attendanceData.forEach(record => {
       const date = new Date(record.check_in).toISOString().split('T')[0];
       
-      // For each date, keep only the record with the earliest check-in time
+      // Only update if this record is earlier than an existing one for the same date
       if (!attendanceByDate[date] || new Date(record.check_in) < new Date(attendanceByDate[date].check_in)) {
         attendanceByDate[date] = record;
+        // Update the status in allDates
+        if (allDates[date]) {
+          allDates[date].status = record.status;
+        }
       }
     });
-    
-    console.log('Unique attendance dates:', Object.keys(attendanceByDate).length);
     
     // Count by status
     const stats = {
@@ -270,37 +294,39 @@ export default function EmployeeDashboard({ navigation }) {
       originalLate: 0, // Keep track of the original late count
     };
     
-    // Count the statuses
-    Object.values(attendanceByDate).forEach(record => {
-      if (record.status) {
-        // If status is 'late', increment both late and present counters
-        if (record.status === 'late') {
-          stats.late = (stats.late || 0) + 1;
-          stats.originalLate = (stats.originalLate || 0) + 1;
-          stats.present = (stats.present || 0) + 1;
-        } else {
-          // For other statuses, count normally
-          stats[record.status] = (stats[record.status] || 0) + 1;
-        }
-        stats.total++;
+    // Count the statuses from allDates
+    Object.values(allDates).forEach(record => {
+      if (record.status === 'present') {
+        stats.present++;
+      } else if (record.status === 'late') {
+        stats.late++;
+        stats.originalLate++;
+        stats.present++; // Count late as present
+      } else if (record.status === 'absent') {
+        stats.absent++;
       }
+      stats.total++;
     });
     
     console.log('Calculated attendance stats:', stats);
     setAttendanceStats(stats);
   };
-
   // Fetch all attendance history for statistics
   const fetchAttendanceStatistics = async () => {
     try {
       console.log('Fetching attendance statistics for employee ID:', user.id);
       
-      // Fetch all attendance records without limit
+      // Get the date 30 days ago
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      // Fetch attendance records for the last 30 days
       const { data, error } = await supabase
         .from('attendance')
         .select('*')
         .eq('employee_id', user.id)
-        .order('check_in', { ascending: false });
+        .gte('check_in', thirtyDaysAgo.toISOString())
+        .order('check_in', { ascending: true });
       
       if (error) {
         console.error('Error fetching attendance statistics:', error);
@@ -323,12 +349,27 @@ export default function EmployeeDashboard({ navigation }) {
         calculateAttendanceStatistics(data);
       } else {
         console.log('No attendance data found');
-        setAttendanceStats({
+        // Calculate absences for the last 30 days
+        const stats = {
           present: 0,
           late: 0,
           absent: 0,
           total: 0
-        });
+        };
+        
+        // Count working days in the last 30 days
+        let date = new Date(thirtyDaysAgo);
+        const today = new Date();
+        while (date <= today) {
+          // Skip weekends
+          if (date.getDay() !== 0 && date.getDay() !== 6) {
+            stats.absent++;
+            stats.total++;
+          }
+          date.setDate(date.getDate() + 1);
+        }
+        
+        setAttendanceStats(stats);
       }
     } catch (error) {
       console.error('Exception in fetchAttendanceStatistics:', error);

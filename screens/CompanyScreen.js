@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { useAuth } from '../utils/AuthContext';
 import { supabase } from '../utils/supabase';
+import { determineAttendanceStatus } from '../utils/attendanceStatus';
 
 const CompanyScreen = ({ navigation }) => {
   const { user, signOut } = useAuth();
@@ -219,13 +220,7 @@ const CompanyScreen = ({ navigation }) => {
         );
         return;
       }
-      
-      // Determine status based on time
-      const hour = now.getHours();
-      const minute = now.getMinutes();
-      const isLate = (hour > 9) || (hour === 9 && minute > 0);
-      const isAbsent = hour >= 13;
-      const status = isAbsent ? 'absent' : (isLate ? 'late' : 'present');
+        // Import and use centralized status determination      const status = determineAttendanceStatus(now);
       
       // Create a check-in record
       const attendanceData = {
