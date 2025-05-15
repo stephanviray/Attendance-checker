@@ -526,7 +526,7 @@ function showAttendanceLogs() {
                 <div class="card-header bg-white">
                     <h5 class="mb-0">Attendance Records</h5>
                 </div>
-                <div class="card-body p-0">
+                <div class="list-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
@@ -721,8 +721,8 @@ async function fetchAttendanceLogs() {
             
             // Determine status and lateness
             const status = record.status === 'absent' ? 'absent' : (() => {
-                if (checkInDate.getHours() > 23 || 
-                    (checkInDate.getHours() === 23 && checkInDate.getMinutes() > 0)) {
+                if (checkInDate.getHours() > 9 || 
+                    (checkInDate.getHours() === 9 && checkInDate.getMinutes() > 0)) {
                     return 'late';
                 }
                 return 'on-time';
@@ -732,7 +732,7 @@ async function fetchAttendanceLogs() {
             let latenessText = '';
             if (status === 'late') {
                 const expectedTime = new Date(checkInDate);
-                expectedTime.setHours(23, 0, 0, 0);
+                expectedTime.setHours(9, 0, 0, 0);
                 const lateBy = Math.floor((checkInDate - expectedTime) / (1000 * 60));
                 const lateHours = Math.floor(lateBy / 60);
                 const lateMinutes = lateBy % 60;
@@ -972,7 +972,7 @@ function loadEmployeesList(container) {
                         </label>
                     </div> -->
                 </div>
-                <div class="card-body">
+                <div class="list-body">
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>

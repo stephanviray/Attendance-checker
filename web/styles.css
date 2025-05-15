@@ -29,7 +29,7 @@ body {
 }
 
 .sidebar .nav-link.active {
-    background-color: #0d6efd;
+    background-color: #1e9754;
     color: #fff;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
@@ -91,6 +91,8 @@ body {
     }
 }
 
+
+
 /* Card styles */
 .card {
     border-radius: 12px;
@@ -115,6 +117,8 @@ body {
 
 .card-body {
     padding: 20px;
+    background-color: #c1ffc7;
+    color: #0B3A32;
 }
 
 /* Dashboard stats cards */
@@ -151,7 +155,7 @@ body {
 }
 
 .bg-primary {
-    background: linear-gradient(45deg, #4e73df, #224abe) !important;
+    background: linear-gradient(45deg, #0B3A32, #0B3A32) !important;
 }
 
 .bg-success {
@@ -257,7 +261,7 @@ canvas {
 }
 
 .form-control:focus, .form-select:focus {
-    border-color: #0d6efd;
+    border-color: #1e9754;
     box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
 }
 
@@ -265,6 +269,12 @@ canvas {
     font-weight: 500;
     margin-bottom: 8px;
     color: #495057;
+}
+
+.alert-info {
+    background-color: #c1ffc7;
+    border-color: #bee5eb;
+    color: #0c5460;
 }
 
 .btn {
@@ -276,26 +286,78 @@ canvas {
 }
 
 .btn-primary {
-    background-color: #3498db;
-    border-color: #3498db;
+    background-color: #1e9754;
+    border-color: #1e9754;
 }
 
 .btn-primary:hover {
-    background-color: #2980b9;
-    border-color: #2980b9;
+    background-color: #0B3A32;
+    border-color: #c1ffc7;
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
 }
 
 .btn-outline-primary {
-    color: #3498db;
-    border-color: #3498db;
+    color: #1e9754;
+    border-color: #1e9754;
+}
+
+.btn-outline-secondary {
+    --bs-btn-color: #1e9754;
+    --bs-btn-border-color: #1e9754;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #1e9754;
+    --bs-btn-hover-border-color: #1e9754;
+    --bs-btn-focus-shadow-rgb: 108, 117, 125;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #1e9754;
+    --bs-btn-active-border-color: #1e9754;
+    --bs-btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
+    --bs-btn-disabled-color: #1e9754;
+    --bs-btn-disabled-bg: transparent;
+    --bs-btn-disabled-border-color: #1e9754;
+    --bs-gradient: none;
 }
 
 .btn-outline-primary:hover {
-    background-color: #3498db;
+    background-color: #1e9754;
     color: #fff;
 }
+
+.btn-outline-info {
+    --bs-btn-color: #1e9754;
+    --bs-btn-border-color: #1e9754;
+    --bs-btn-hover-color: #000;
+    --bs-btn-hover-bg: #1e9754;
+    --bs-btn-hover-border-color: #1e9754;
+    --bs-btn-focus-shadow-rgb: 13, 202, 240;
+    --bs-btn-active-color: #000;
+    --bs-btn-active-bg: #1e9754;
+    --bs-btn-active-border-color: #1e9754;
+    --bs-btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
+    --bs-btn-disabled-color: #1e9754;
+    --bs-btn-disabled-bg: transparent;
+    --bs-btn-disabled-border-color: #1e9754;
+    --bs-gradient: none;
+}
+
+.btn-success {
+    --bs-btn-color: #fff;
+    --bs-btn-bg: #1e9754;
+    --bs-btn-border-color: #1e9754;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #0B3A32;
+    --bs-btn-hover-border-color: #0B3A32;
+    --bs-btn-focus-shadow-rgb: 60, 153, 110;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #0B3A32;
+    --bs-btn-active-border-color: #0B3A32;
+    --bs-btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
+    --bs-btn-disabled-color: #fff;
+    --bs-btn-disabled-bg: #1e9754;
+    --bs-btn-disabled-border-color: #1e9754;
+}
+
 
 .btn-lg {
     padding: 12px 25px;
@@ -306,6 +368,12 @@ canvas {
     padding: 5px 10px;
     font-size: 0.85rem;
 }
+
+select:not(:-internal-list-box):not([multiple])::picker {
+    color: -internal-auto-base(inherit, CanvasText);
+    background-color: #0B3A32;
+}
+
 
 /* Password strength */
 .password-strength .progress-bar {
@@ -371,7 +439,7 @@ canvas {
     height: 2rem;
     width: 2rem;
     border-width: 0.25em;
-    color: #3498db;
+    color: #1e9754;
 }
 
 /* Attendance calendar */
@@ -430,7 +498,7 @@ canvas {
 }
 
 .mode-toggle.active {
-    background-color: #3498db;
+    background-color: #1e9754;
 }
 
 .mode-toggle.active:after {
@@ -461,7 +529,7 @@ canvas {
 
 .activity-time {
     font-size: 0.8rem;
-    color: #6c757d;
+    color: #1e9754;
 }
 
 .activity-user {
@@ -791,7 +859,7 @@ canvas {
 }
 
 .sidebar-content .nav-link.active {
-    background-color: #0d6efd;
+    background-color: #1e9754;
     color: #fff;
 }
 
@@ -799,7 +867,7 @@ canvas {
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background-color: #0d6efd;
+    background-color: #1e9754;
     color: white;
     display: flex;
     align-items: center;
@@ -890,7 +958,7 @@ tr[data-status="absent"] td:first-child::before {
 }
 
 #filterAll.active {
-    background-color: #6c757d;
+    background-color: #1e9754;
     color: white;
 }
 
