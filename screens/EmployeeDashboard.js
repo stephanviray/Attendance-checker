@@ -41,9 +41,9 @@ export default function EmployeeDashboard({ navigation }) {
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
   const [activeSection, setActiveSection] = useState('attendance');
   const [attendanceStats, setAttendanceStats] = useState({
-    present: 0,
-    late: 0,
-    absent: 0,
+    present_days: 0,
+    late_days: 0,
+    absent_days: 0,
     total: 0
   });
   const [employeeAttendance, setEmployeeAttendance] = useState([]);
@@ -263,25 +263,16 @@ export default function EmployeeDashboard({ navigation }) {
     
     // Count by status
     const stats = {
-      present: 0,
-      late: 0,
-      absent: 0,
+      present_days: 0,
+      late_days: 0,
+      absent_days: 0,
       total: 0,
-      originalLate: 0, // Keep track of the original late count
     };
     
     // Count the statuses
     Object.values(attendanceByDate).forEach(record => {
       if (record.status) {
-        // If status is 'late', increment both late and present counters
-        if (record.status === 'late') {
-          stats.late = (stats.late || 0) + 1;
-          stats.originalLate = (stats.originalLate || 0) + 1;
-          stats.present = (stats.present || 0) + 1;
-        } else {
-          // For other statuses, count normally
-          stats[record.status] = (stats[record.status] || 0) + 1;
-        }
+        stats[record.status + '_days'] = (stats[record.status + '_days'] || 0) + 1;
         stats.total++;
       }
     });
@@ -295,44 +286,49 @@ export default function EmployeeDashboard({ navigation }) {
     try {
       console.log('Fetching attendance statistics for employee ID:', user.id);
       
-      // Fetch all attendance records without limit
-      const { data, error } = await supabase
-        .from('attendance')
-        .select('*')
-        .eq('employee_id', user.id)
-        .order('check_in', { ascending: false });
-      
-      if (error) {
-        console.error('Error fetching attendance statistics:', error);
-        Alert.alert('Error', 'Failed to load attendance statistics: ' + error.message);
+      // Get attendance summary from SQL query
+      const { data: summaryData, error: summaryError } = await supabase.rpc('get_attendance_summary', { 
+        employee_id: user.id
+      });
+  
+      if (summaryError) {
+        console.error('Error fetching attendance summary:', summaryError);
+        Alert.alert('Error', 'Failed to load attendance statistics: ' + summaryError.message);
         return;
       }
-      
-      if (data) {
-        console.log('Fetched', data.length, 'attendance records for statistics');
-        console.log('First few records:', data.slice(0, 3));
-        
-        // Check if we have the expected statuses
-        const statusCounts = {};
-        data.forEach(record => {
-          statusCounts[record.status] = (statusCounts[record.status] || 0) + 1;
-        });
-        console.log('Status counts in raw data:', statusCounts);
-        
-        // Now calculate the final statistics
-        calculateAttendanceStatistics(data);
-      } else {
-        console.log('No attendance data found');
+
+      // Ensure we have data
+      if (!summaryData || !Array.isArray(summaryData) || summaryData.length === 0) {
+        console.log('No attendance summary data found');
         setAttendanceStats({
-          present: 0,
-          late: 0,
-          absent: 0,
+          present_days: 0,
+          late_days: 0,
+          absent_days: 0,
           total: 0
         });
+        return;
       }
+
+      const summary = summaryData[0]; // We expect a single row from the summary
+      console.log('Attendance summary:', summary);
+      
+      // Set the statistics
+      setAttendanceStats({
+        present_days: summary.present_days || 0,
+        late_days: summary.late_days || 0,
+        absent_days: summary.absent_days || 0,
+        total: (summary.present_days || 0) + (summary.late_days || 0) + (summary.absent_days || 0)
+      });
     } catch (error) {
       console.error('Exception in fetchAttendanceStatistics:', error);
       Alert.alert('Error', 'An unexpected error occurred while loading attendance statistics');
+      // Set default values on error
+      setAttendanceStats({
+        present_days: 0,
+        late_days: 0,
+        absent_days: 0,
+        total: 0
+      });
     }
   };
 
@@ -541,23 +537,23 @@ export default function EmployeeDashboard({ navigation }) {
                     <View style={[styles.statIconContainer, styles.presentIconContainer]}>
                       <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
                     </View>
-                    <Text style={styles.statValue}>{attendanceStats.present}</Text>
+                    <Text style={styles.statValue}>{attendanceStats.present_days || 0}</Text>
                     <Text style={styles.statLabel}>Present</Text>
                   </View>
-                  
+                   
                   <View style={styles.statCard}>
                     <View style={[styles.statIconContainer, styles.lateIconContainer]}>
                       <Ionicons name="time" size={24} color="#FF9800" />
                     </View>
-                    <Text style={styles.statValue}>{attendanceStats.late}</Text>
+                    <Text style={styles.statValue}>{attendanceStats.late_days || 0}</Text>
                     <Text style={styles.statLabel}>Late</Text>
                   </View>
-                  
+                   
                   <View style={styles.statCard}>
                     <View style={[styles.statIconContainer, styles.absentIconContainer]}>
                       <Ionicons name="close-circle" size={24} color="#F44336" />
                     </View>
-                    <Text style={styles.statValue}>{attendanceStats.absent}</Text>
+                    <Text style={styles.statValue}>{attendanceStats.absent_days || 0}</Text>
                     <Text style={styles.statLabel}>Absent</Text>
                   </View>
                 </View>
