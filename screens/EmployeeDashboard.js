@@ -39,6 +39,8 @@ export default function EmployeeDashboard({ navigation }) {
   const [editedProfile, setEditedProfile] = useState({});
   const [changePasswordModal, setChangePasswordModal] = useState(false);
   const [passwords, setPasswords] = useState({ new: '', confirm: '' });
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [activeSection, setActiveSection] = useState('attendance');
   const [attendanceStats, setAttendanceStats] = useState({
     present_days: 0,
