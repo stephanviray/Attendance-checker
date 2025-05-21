@@ -47,6 +47,7 @@ export default function EmployeeDashboard({ navigation }) {
     total: 0
   });
   const [employeeAttendance, setEmployeeAttendance] = useState([]);
+  const [attendanceFilter, setAttendanceFilter] = useState('all');
 
   useEffect(() => {
     fetchEmployeeData();
@@ -312,12 +313,22 @@ export default function EmployeeDashboard({ navigation }) {
       const summary = summaryData[0]; // We expect a single row from the summary
       console.log('Attendance summary:', summary);
       
-      // Set the statistics
+      // Set the statistics properly - calculate on-time days
+      // The database returns present_days as the combination of on-time + late
+      // We need to subtract late_days to get just the on-time days
+      const lateDays = summary.late_days || 0;
+      const rawPresentDays = summary.present_days || 0;
+      const onTimeDays = Math.max(0, rawPresentDays - lateDays);
+      const absentDays = summary.absent_days || 0;
+      
+      console.log('Raw present days from DB:', rawPresentDays);
+      console.log('Calculated on-time days:', onTimeDays);
+      
       setAttendanceStats({
-        present_days: summary.present_days || 0,
-        late_days: summary.late_days || 0,
-        absent_days: summary.absent_days || 0,
-        total: (summary.present_days || 0) + (summary.late_days || 0) + (summary.absent_days || 0)
+        present_days: onTimeDays,
+        late_days: lateDays,
+        absent_days: absentDays,
+        total: onTimeDays + lateDays + absentDays
       });
     } catch (error) {
       console.error('Exception in fetchAttendanceStatistics:', error);
@@ -549,7 +560,7 @@ export default function EmployeeDashboard({ navigation }) {
                       <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
                     </View>
                     <Text style={styles.statValue}>{attendanceStats.present_days || 0}</Text>
-                    <Text style={styles.statLabel}>Present</Text>
+                    <Text style={styles.statLabel}>On Time</Text>
                   </View>
                    
                   <View style={styles.statCard}>
@@ -651,7 +662,6 @@ export default function EmployeeDashboard({ navigation }) {
                 </View>
               </View>
             )}
-            
             {/* Attendance History - Now integrated into the ScrollView */}
             {userRole === 'employee' && (
               <View style={styles.historyContainer}>
@@ -1325,6 +1335,47 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: '#fff',
     fontWeight: '500',
+  },
+  historyContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    marginHorizontal: 20,
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    marginBottom: 15,
+  },
+  filterButton: {
+    flex: 1,
+    padding: 8,
+    borderRadius: 8,
+    marginHorizontal: 5,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    alignItems: 'center',
+  },
+  activeFilterButton: {
+    backgroundColor: '#0B3A32',
+    borderColor: '#0B3A32',
+  },
+  filterText: {
+    color: '#666',
+    fontSize: 14,
+  },
+  activeFilterText: {
+    color: '#fff',
+    fontSize: 14,
   },
   statsContainer: {
     backgroundColor: '#fff',

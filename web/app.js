@@ -514,7 +514,7 @@ function showAttendanceLogs() {
                     <div class="btn-group">
                         <button class="btn btn-outline-secondary btn-sm active" id="filterAll">All</button>
                         <button class="btn btn-outline-warning btn-sm" id="filterLate">Late</button>
-                        <button onclick="displayAbsenteesOnly()" class="btn btn-danger">Absent</button>
+                        <button class="btn btn-outline-danger btn-sm" id="filterAbsent">Absent</button>
                     </div>
                     <button class="btn btn-primary btn-sm" id="refreshAttendanceBtn">
                         <i class="bi bi-arrow-clockwise me-1"></i> Refresh
@@ -537,11 +537,12 @@ function showAttendanceLogs() {
                                     <th>Date</th>
                                     <th>Check-in</th>
                                     <th>Check-out</th>
+                                    <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody id="attendanceList">
                                 <tr>
-                                    <td colspan="6" class="text-center py-4">
+                                    <td colspan="7" class="text-center py-4">
                                         <div class="spinner-border text-primary" role="status">
                                             <span class="visually-hidden">Loading...</span>
                                         </div>
@@ -589,7 +590,7 @@ async function fetchAttendanceLogs() {
 
         attendanceList.innerHTML = `
             <tr>
-                <td colspan="6" class="text-center py-4">
+                <td colspan="7" class="text-center py-4">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Loading...</span>
                     </div>
@@ -604,7 +605,7 @@ async function fetchAttendanceLogs() {
             console.error('No user data found in localStorage');
             attendanceList.innerHTML = `
                 <tr>
-                    <td colspan="6" class="text-center py-4">
+                    <td colspan="7" class="text-center py-4">
                         <div class="alert alert-danger">
                             <i class="bi bi-exclamation-triangle me-2"></i>
                             Error: No user data found
@@ -695,21 +696,27 @@ async function fetchAttendanceLogs() {
         // Create records for absent employees ONLY if after 6 PM or date in past
         let absentEmployees = [];
         if (shouldMarkAbsent) {
-            absentEmployees = allEmployees
-                .filter(emp => !checkedInEmployees.has(emp.id))
-                .map(emp => ({
-                    profiles: {
-                        id: emp.id,
-                        full_name: emp.full_name,
-                        department: emp.department,
-                        custom_id: emp.custom_id,
-                        archived: false
-                    },
-                    check_in: startDate.toISOString(),
-                    check_out: null,
-                    status: 'absent',
-                    employee_id: emp.id
-                }));
+            // Check if selected date is a weekend
+            const isWeekendDay = isWeekend(startDate);
+            
+            // Only mark absences for weekdays
+            if (!isWeekendDay) {
+                absentEmployees = allEmployees
+                    .filter(emp => !checkedInEmployees.has(emp.id))
+                    .map(emp => ({
+                        profiles: {
+                            id: emp.id,
+                            full_name: emp.full_name,
+                            department: emp.department,
+                            custom_id: emp.custom_id,
+                            archived: false
+                        },
+                        check_in: startDate.toISOString(),
+                        check_out: null,
+                        status: 'absent',
+                        employee_id: emp.id
+                    }));
+            }
         }
 
         // Combine attendance records with absent records
@@ -721,12 +728,15 @@ async function fetchAttendanceLogs() {
         );
 
         if (!activeRecords || activeRecords.length === 0) {
+            // Check if the selected date is weekend
+            const isWeekend = startDate.getDay() === 0 || startDate.getDay() === 6;
+            
             attendanceList.innerHTML = `
                 <tr>
-                    <td colspan="6" class="text-center py-4">
+                    <td colspan="7" class="text-center py-4">
                         <div class="alert alert-info">
                             <i class="bi bi-info-circle me-2"></i>
-                            No attendance records found for the selected period.
+                            ${isWeekend ? 'No Office on Weekends.' : 'No attendance records found for the selected period.'}
                         </div>
                     </td>
                 </tr>
@@ -743,18 +753,25 @@ async function fetchAttendanceLogs() {
             const checkInTime = record.status === 'absent' ? '-' : checkInDate.toLocaleTimeString();
             const checkOutTime = checkOutDate ? checkOutDate.toLocaleTimeString() : '-';
 
-            // Determine status and lateness
-            const status = record.status === 'absent' ? 'absent' : (() => {
-                if (checkInDate.getHours() > 9 ||
-                    (checkInDate.getHours() === 9 && checkInDate.getMinutes() > 0)) {
-                    return 'late';
-                }
-                return 'on-time';
-            })();
+            // Determine status (absent, on-time, late, weekend)
+            const isWeekendDay = checkInDate.getDay() === 0 || checkInDate.getDay() === 6;
+            let status = isWeekendDay ? 'weekend' : 
+                record.status === 'absent' ? 'absent' : 
+                (() => {
+                    if (checkInDate.getHours() > 9 ||
+                        (checkInDate.getHours() === 9 && checkInDate.getMinutes() > 0)) {
+                        return 'late';
+                    }
+                    return 'on-time';
+                })();
 
-            // Calculate lateness text
+            // Initialize lateness text
             let latenessText = '';
-            if (status === 'late') {
+            
+            // Show "No office on weekends" for both Saturday and Sunday
+            if (isWeekendDay) {
+                latenessText = 'No Office on Weekends.';
+            } else if (status === 'late') {
                 const expectedTime = new Date(checkInDate);
                 expectedTime.setHours(9, 0, 0, 0);
                 const lateBy = Math.floor((checkInDate - expectedTime) / (1000 * 60));
@@ -765,18 +782,40 @@ async function fetchAttendanceLogs() {
                     `Late by ${lateMinutes}m`;
             }
 
+            // Determine badge and styling like in the filter view
+            let badgeClass, iconClass, statusText, rowClass;
+            
+            if (isWeekendDay) {
+                statusText = 'No Office';
+                rowClass = '';
+                badgeClass = 'bg-secondary';
+                iconClass = 'bi-calendar-x';
+            } else if (status === 'absent') {
+                statusText = 'Absent';
+                rowClass = 'table-danger';
+                badgeClass = 'bg-danger';
+                iconClass = 'bi-x-circle-fill';
+            } else if (status === 'late') {
+                statusText = `Late (${latenessText})`;
+                rowClass = 'table-warning';
+                badgeClass = 'bg-warning';
+                iconClass = 'bi-clock-fill';
+            } else {
+                statusText = 'On Time';
+                rowClass = 'table-success';
+                badgeClass = 'bg-success';
+                iconClass = 'bi-check-circle-fill';
+            }
+            
             return `
-                <tr data-status="${status}">
+                <tr class="${rowClass}" data-status="${status}">
                     <td>${record.profiles.custom_id || record.employee_id}</td>
                     <td>${record.profiles.full_name || 'Unknown'}</td>
                     <td>${record.profiles.department || 'General'}</td>
                     <td>${checkInDate.toLocaleDateString()}</td>
-                    <td class="${status === 'late' ? 'text-warning' :
-                    status === 'absent' ? 'text-danger' :
-                        'text-success'}">${checkInTime}
-                        ${status === 'late' ? `<br><small class="text-danger">${latenessText}</small>` : ''}
-                    </td>
+                    <td>${checkInTime}</td>
                     <td>${checkOutTime}</td>
+                    <td><span class="badge ${badgeClass}"><i class="bi ${iconClass}"></i> ${statusText}</span></td>
                 </tr>
             `;
         }).join('');
@@ -790,7 +829,7 @@ async function fetchAttendanceLogs() {
         console.error('Error in fetchAttendanceLogs:', error);
         attendanceList.innerHTML = `
             <tr>
-                <td colspan="6" class="text-center py-4">
+                <td colspan="7" class="text-center py-4">
                     <div class="alert alert-danger">
                         <i class="bi bi-exclamation-triangle me-2"></i>
                         Error: ${error.message}
@@ -802,48 +841,522 @@ async function fetchAttendanceLogs() {
 }
 
 // Filter attendance logs based on search and date filter
+// Separate search function for attendance logs that runs after data is loaded
+function searchAttendanceLogs() {
+    console.log('Searching attendance logs');
+    
+    // Get search input
+    const searchInput = document.getElementById('attendanceSearch');
+    const searchTerm = searchInput?.value.toLowerCase().trim() || '';
+    console.log('Search term:', searchTerm);
+    
+    // Get current filter
+    const activeFilterBtn = document.querySelector('.filter-btn.active');
+    const currentFilter = activeFilterBtn ? activeFilterBtn.id.replace('filter', '').toLowerCase() : 'all';
+    console.log('Current filter:', currentFilter);
+    
+    // Get all rows after data has been loaded
+    const rows = document.querySelectorAll('#attendanceList tr');
+    console.log('Found', rows.length, 'rows to filter');
+    
+    // Keep track of visible rows
+    let visibleCount = 0;
+    
+    // Apply filtering to each row
+    rows.forEach(row => {
+        // Skip header rows or rows without data
+        if (!row.querySelector('td')) return;
+        
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 3) return;
+        
+        // Get row data 
+        const employeeId = cells[0]?.textContent.toLowerCase() || '';
+        const name = cells[1]?.textContent.toLowerCase() || '';
+        const department = cells[2]?.textContent.toLowerCase() || '';
+        const date = cells[3]?.textContent.toLowerCase() || '';
+        const checkIn = cells[4]?.textContent.toLowerCase() || '';
+        const checkOut = cells[5]?.textContent.toLowerCase() || '';
+        
+        // Check status (from data attribute)
+        const status = row.getAttribute('data-status') || '';
+        
+        // Match search term
+        const matchesSearch = !searchTerm || (
+            employeeId.includes(searchTerm) ||
+            name.includes(searchTerm) ||
+            department.includes(searchTerm) ||
+            date.includes(searchTerm) ||
+            checkIn.includes(searchTerm) ||
+            checkOut.includes(searchTerm)
+        );
+        
+        // Match status filter
+        let matchesFilter = true;
+        if (currentFilter !== 'all') {
+            if (status === 'weekend' || status === 'no-office') {
+                matchesFilter = false;
+            } else {
+                matchesFilter = status === currentFilter;
+            }
+        }
+        
+        // Show or hide row
+        const shouldShow = matchesSearch && matchesFilter;
+        row.style.display = shouldShow ? '' : 'none';
+        
+        if (shouldShow) visibleCount++;
+    });
+    
+    console.log('Visible rows after filtering:', visibleCount);
+    
+    // Show 'no results' message if needed
+    const noResultsRow = document.getElementById('noResultsRow');
+    if (noResultsRow) {
+        noResultsRow.style.display = visibleCount === 0 ? '' : 'none';
+    } else if (visibleCount === 0) {
+        // If no results and no message row exists, create one
+        const attendanceList = document.getElementById('attendanceList');
+        if (attendanceList) {
+            const noResults = document.createElement('tr');
+            noResults.id = 'noResultsRow';
+            noResults.innerHTML = `
+                <td colspan="7" class="text-center p-3">
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        No matching records found.
+                    </div>
+                </td>
+            `;
+            attendanceList.appendChild(noResults);
+        }
+    }
+}
+
 function filterAttendanceLogs() {
     console.log('Filtering attendance logs');
     
-    const searchInput = document.getElementById('attendanceSearch');
-    const searchTerm = searchInput?.value.toLowerCase().trim() || '';
+    // Get the date picker value
+    const datePicker = document.getElementById('attendanceDatePicker');
+    const selectedDate = datePicker ? datePicker.value : null;
     
-    // Get all rows from the table
-    const rows = document.querySelectorAll('#attendanceList tr');
+    if (!selectedDate) {
+        showToast('Please select a date first', 'Select a date to view attendance records', 'warning');
+        return;
+    }
     
-    // Determine current active filter: all, late, absent
-    const activeFilterBtn = document.querySelector('.btn-group .btn.active');
-    const currentFilter = activeFilterBtn ? activeFilterBtn.id.replace('filter', '').toLowerCase() : 'all';
-    
-    rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        if (cells.length < 5) return; // skip headers or empty rows
+    // Show loading spinner
+    const attendanceList = document.getElementById('attendanceList');
+    attendanceList.innerHTML = `
+        <tr><td colspan="7" class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading records...</p>
+        </td></tr>`;
+
+    // Fetch fresh data
+    fetchAttendanceLogs().then(() => {
+        // After data is loaded, apply search filtering
+        searchAttendanceLogs();
         
-        const employeeId = cells[0].textContent.toLowerCase();
-        const name = cells[1].textContent.toLowerCase();
-        const department = cells[2].textContent.toLowerCase();
-        
-        // Does the row match the search term?
-        const matchesSearch = !searchTerm || 
-            employeeId.includes(searchTerm) ||
-            name.includes(searchTerm) ||
-            department.includes(searchTerm);
-        
-        // Check row status attribute
-        const status = row.getAttribute('data-status');
-        
-        // Show all if filter is 'all', else only matching status rows
-        const matchesFilter = currentFilter === 'all' || status === currentFilter;
-        
-        row.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
+        // Add event listener to search input if it doesn't exist yet
+        const searchInput = document.getElementById('attendanceSearch');
+        if (searchInput && !searchInput._hasSearchListener) {
+            searchInput.addEventListener('input', () => {
+                searchAttendanceLogs();
+            });
+            searchInput._hasSearchListener = true;
+        }
     });
 }
 
+// ... rest of the code remains the same ...
+
+async function displayAllRecords() {
+    const attendanceList = document.getElementById('attendanceList');
+    attendanceList.innerHTML = `
+        <tr><td colspan="7" class="text-center py-4">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading records...</p>
+        </td></tr>`;
+
+    try {
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        if (!currentUser || !currentUser.id) throw new Error('No user data found');
+
+        const datePicker = document.getElementById('attendanceDatePicker');
+        const selectedDate = datePicker ? datePicker.value : null;
+
+        let startDate = selectedDate ? new Date(selectedDate) : new Date();
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(startDate);
+        endDate.setHours(23, 59, 59, 999);
+
+        // Get all active employees
+        const { data: allEmployees, error: employeesError } = await supabaseClient
+            .from('profiles')
+            .select('id, full_name, department, custom_id')
+            .eq('role', 'employee')
+            .eq('archived', false)
+            .eq('company_id', currentUser.id);
+        if (employeesError) throw employeesError;
+
+        // Get attendance records for the day
+        const { data: attendanceRecords, error: attendanceError } = await supabaseClient
+            .from('attendance')
+            .select('employee_id, check_in, check_out')
+            .gte('check_in', startDate.toISOString())
+            .lte('check_in', endDate.toISOString())
+            .eq('recorded_by', currentUser.id);
+        if (attendanceError) throw attendanceError;
+
+        // Create map of attendance records
+        const attendanceMap = new Map();
+        attendanceRecords.forEach(record => {
+            attendanceMap.set(record.employee_id, record);
+        });
+
+        // Get the search term
+        const searchInput = document.getElementById('attendanceSearch');
+        const searchTerm = searchInput?.value.toLowerCase().trim() || '';
+
+        // Generate rows for all employees (on_time, late, and absent)
+        const rows = allEmployees.map(emp => {
+            const record = attendanceMap.get(emp.id);
+            const isWeekend = startDate.getDay() === 0 || startDate.getDay() === 6;
+            
+            // Enhanced search functionality - search across multiple fields like employee list search
+            const matchesSearch = !searchTerm || (
+                (emp.custom_id && emp.custom_id.toLowerCase().includes(searchTerm)) ||
+                (emp.full_name && emp.full_name.toLowerCase().includes(searchTerm)) ||
+                (emp.department && emp.department.toLowerCase().includes(searchTerm)) ||
+                (emp.position && emp.position.toLowerCase().includes(searchTerm)) ||
+                (record && new Date(record.check_in).toLocaleTimeString().toLowerCase().includes(searchTerm))
+            );
+            
+            if (!matchesSearch) {
+                return null;
+            }
+            
+            // Status determination
+            let status, statusClass, badgeClass, iconClass;
+            
+            if (isWeekend) {
+                status = 'No Office';
+                statusClass = '';
+                badgeClass = 'bg-secondary';
+                iconClass = 'bi-calendar-x';
+            } else if (record) {
+                const minutesLate = calculateLateness(record.check_in);
+                if (minutesLate > 0) {
+                    // Calculate lateness text for display
+                    const hoursLate = Math.floor(minutesLate / 60);
+                    const remainingMinutes = minutesLate % 60;
+                    const lateText = hoursLate > 0 ? 
+                        `${hoursLate}h ${remainingMinutes}m late` : 
+                        `${minutesLate}m late`;
+                    
+                    status = `Late (${lateText})`;
+                    const dataStatus = 'late'; // Use simple status for filtering
+                    statusClass = 'table-warning';
+                    badgeClass = 'bg-warning';
+                    iconClass = 'bi-clock-fill';
+                } else {
+                    status = 'On Time';
+                    statusClass = 'table-success';
+                    badgeClass = 'bg-success';
+                    iconClass = 'bi-check-circle-fill';
+                }
+            } else {
+                status = 'Absent';
+                statusClass = 'table-danger';
+                badgeClass = 'bg-danger';
+                iconClass = 'bi-x-circle-fill';
+            }
+            
+            return `
+                <tr class="${statusClass}" data-status="${isWeekend ? 'weekend' : record ? (status.toLowerCase().includes('late') ? 'late' : 'on_time') : 'absent'}">
+                    <td>${emp.custom_id}</td>
+                    <td>${emp.full_name}</td>
+                    <td>${emp.department || 'General'}</td>
+                    <td>${startDate.toLocaleDateString()}</td>
+                    <td>${record ? new Date(record.check_in).toLocaleTimeString() : ''}</td>
+                    <td>${record && record.check_out ? new Date(record.check_out).toLocaleTimeString() : ''}</td>
+                    <td><span class="badge ${badgeClass}"><i class="bi ${iconClass}"></i> ${status}</span></td>
+                </tr>
+            `;
+        }).filter(row => row !== null).join('');
+
+        if (rows.length === 0) {
+            attendanceList.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center py-4">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            No matching records found.
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        attendanceList.innerHTML = rows;
+
+    } catch (err) {
+        console.error('Error displaying records:', err);
+        attendanceList.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-4">
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Error: ${err.message}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+async function displayLateOnly() {
+    const attendanceList = document.getElementById('attendanceList');
+    attendanceList.innerHTML = `
+        <tr><td colspan="7" class="text-center py-4">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading late records...</p>
+        </td></tr>`;
+
+    try {
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        if (!currentUser || !currentUser.id) throw new Error('No user data found');
+
+        const datePicker = document.getElementById('attendanceDatePicker');
+        const selectedDate = datePicker ? datePicker.value : null;
+
+        if (!selectedDate) {
+            attendanceList.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center py-4">
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Please select a date first
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        // Set up date range
+        let startDate = new Date(selectedDate);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(selectedDate);
+        endDate.setHours(23, 59, 59, 999);
+
+        // Skip weekends
+        if (startDate.getDay() === 0 || startDate.getDay() === 6) {
+            attendanceList.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center py-4">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Selected date is a weekend. No attendance required.
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        // Use separate queries instead of JOIN since there's an ambiguous relationship
+        console.log('Fetching late records for date:', selectedDate);
+        
+        // Get all attendance records for the day
+        const { data: attendanceRecords, error: attendanceError } = await supabaseClient
+            .from('attendance')
+            .select('*')
+            .gte('check_in', startDate.toISOString())
+            .lte('check_in', endDate.toISOString())
+            .eq('recorded_by', currentUser.id);
+        
+        if (attendanceError) throw attendanceError;
+        console.log('Found attendance records:', attendanceRecords?.length || 0);
+        
+        // Get all employee profiles
+        const { data: allProfiles, error: profilesError } = await supabaseClient
+            .from('profiles')
+            .select('*')
+            .eq('company_id', currentUser.id);
+        
+        if (profilesError) throw profilesError;
+        console.log('Found employee profiles:', allProfiles?.length || 0);
+        
+        // Create a lookup map for employee profiles
+        const profilesMap = {};
+        if (allProfiles) {
+            allProfiles.forEach(profile => {
+                profilesMap[profile.id] = profile;
+            });
+        }
+        console.log('Created profiles lookup map with', Object.keys(profilesMap).length, 'entries');
+        
+        if (!attendanceRecords || attendanceRecords.length === 0) {
+            attendanceList.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center py-4">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            No attendance records found for the selected date.
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        // Now filter to find late employees
+        const lateRecords = [];
+        
+        for (const record of attendanceRecords) {
+            const checkInTime = new Date(record.check_in);
+            const nineAM = new Date(checkInTime);
+            nineAM.setHours(9, 0, 0, 0);
+            
+            // Get the employee profile for this record
+            const profile = profilesMap[record.employee_id];
+            const employeeName = profile ? profile.full_name : `Unknown (ID: ${record.employee_id})`;
+            
+            console.log(`Checking if late: ${employeeName}, Time: ${checkInTime.toLocaleTimeString()}`);
+            
+            if (checkInTime > nineAM) {
+                console.log(`*** LATE: ${employeeName} arrived at ${checkInTime.toLocaleTimeString()}`);
+                // Store both the record and the profile for easier access
+                lateRecords.push({
+                    record: record,
+                    profile: profile
+                });
+            }
+        }
+        
+        console.log(`Found ${lateRecords.length} late records`);
+        
+        if (lateRecords.length === 0) {
+            attendanceList.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center py-4">
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle me-2"></i>
+                            No late employees for the selected date.
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        // Get search term
+        const searchInput = document.getElementById('attendanceSearch');
+        const searchTerm = searchInput?.value.toLowerCase().trim() || '';
+        console.log('Applying search filter:', searchTerm ? `'${searchTerm}'` : '(none)');
+        
+        // Generate table rows from the late records
+        let rowsHtml = '';
+        let matchCount = 0;
+        
+        for (const item of lateRecords) {
+            const record = item.record;
+            const profile = item.profile;
+            
+            // Skip if no profile data
+            if (!profile) {
+                console.log(`WARNING: No profile data for employee ID ${record.employee_id}`);
+                continue;
+            }
+            
+            console.log(`Processing late record for: ${profile.full_name}, ID: ${profile.id}`);
+            
+            // Apply search filter if provided
+            if (searchTerm && 
+                !String(profile.custom_id || '').toLowerCase().includes(searchTerm) && 
+                !String(profile.full_name || '').toLowerCase().includes(searchTerm) && 
+                !String(profile.department || '').toLowerCase().includes(searchTerm)) {
+                console.log(`Filtered out by search term: ${searchTerm}`);
+                continue;  // Skip if doesn't match search
+            }
+            
+            matchCount++;
+            console.log(`Match #${matchCount}: ${profile.full_name}`);
+            
+            // Calculate lateness
+            const checkInTime = new Date(record.check_in);
+            const expectedTime = new Date(checkInTime);
+            expectedTime.setHours(9, 0, 0, 0);
+            const minutesLate = Math.floor((checkInTime - expectedTime) / (1000 * 60));
+            const hoursLate = Math.floor(minutesLate / 60);
+            const remainingMinutes = minutesLate % 60;
+            const lateText = hoursLate > 0 ? 
+                `${hoursLate}h ${remainingMinutes}m late` : 
+                `${minutesLate}m late`;
+            
+            rowsHtml += `
+                <tr class="table-warning" data-status="late">
+                    <td>${profile.custom_id || '-'}</td>
+                    <td>${profile.full_name || '-'}</td>
+                    <td>${profile.department || 'General'}</td>
+                    <td>${startDate.toLocaleDateString()}</td>
+                    <td>${checkInTime.toLocaleTimeString()}</td>
+                    <td>${record.check_out ? new Date(record.check_out).toLocaleTimeString() : ''}</td>
+                    <td><span class="badge bg-warning"><i class="bi bi-clock-fill"></i> Late (${lateText})</span></td>
+                </tr>
+            `;
+        }
+        
+        if (matchCount === 0) {
+            attendanceList.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center py-4">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            No matching records found.
+                        </div>
+                    </td>
+                </tr>
+            `;
+        } else {
+            console.log(`Displaying ${matchCount} late employee records`);
+            attendanceList.innerHTML = rowsHtml;
+        }
+        
+        // Update filter button to show count
+        const lateFilterBtn = document.getElementById('filterLate');
+        if (lateFilterBtn) {
+            lateFilterBtn.textContent = `Late (${lateRecords.length})`;
+        }
+
+    } catch (err) {
+        console.error('Error displaying late employees:', err);
+        attendanceList.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-4">
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Error: ${err.message}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+}
 
 async function displayAbsenteesOnly() {
     const attendanceList = document.getElementById('attendanceList');
     attendanceList.innerHTML = `
-        <tr><td colspan="6" class="text-center py-4">
+        <tr><td colspan="7" class="text-center py-4">
         <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Loading...</span>
         </div>
@@ -900,7 +1413,7 @@ async function displayAbsenteesOnly() {
         if (absentees.length === 0) {
             attendanceList.innerHTML = `
                 <tr>
-                    <td colspan="6" class="text-center py-4">
+                    <td colspan="7" class="text-center py-4">
                         <div class="alert alert-success">
                             <i class="bi bi-check-circle me-2"></i>
                             No absentees for the selected date.
@@ -912,12 +1425,13 @@ async function displayAbsenteesOnly() {
         }
 
         const absenteeRows = absentees.map(emp => `
-            <tr class="table-danger">
+            <tr class="table-danger" data-status="absent">
                 <td>${emp.custom_id}</td>
                 <td>${emp.full_name}</td>
                 <td>${emp.department || 'General'}</td>
                 <td>${startDate.toLocaleDateString()}</td>
-                <td>-</td>
+                <td></td>
+                <td></td>
                 <td><span class="badge bg-danger"><i class="bi bi-x-circle-fill"></i> Absent</span></td>
             </tr>
         `).join('');
@@ -936,7 +1450,7 @@ async function displayAbsenteesOnly() {
         console.error('Error displaying absentees:', err);
         attendanceList.innerHTML = `
             <tr>
-                <td colspan="6" class="text-center py-4">
+                <td colspan="7" class="text-center py-4">
                     <div class="alert alert-danger">
                         <i class="bi bi-exclamation-triangle me-2"></i>
                         Error: ${err.message}
@@ -970,17 +1484,39 @@ function setupFilterButtons() {
                 button.classList.add('active');
                 if (button.id === 'filterLate') {
                     button.classList.add('btn-warning');
+                    displayLateOnly();
                 } else if (button.id === 'filterAbsent') {
                     button.classList.add('btn-danger');
+                    displayAbsenteesOnly();
                 } else {
                     button.classList.add('btn-secondary');
+                    displayAllRecords();
                 }
-                
-                // Apply filters
-                filterAttendanceLogs();
             });
         }
     });
+}
+
+// Helper function to generate attendance row
+function generateAttendanceRow(employee, record, date, isWeekend) {
+    const status = record ? (calculateLateness(record.check_in) > 0 ? 'late' : 'on_time') : 'absent';
+    const statusClass = status === 'late' ? 'table-warning' : 
+                       status === 'absent' ? 'table-danger' : '';
+    
+    return `
+        <tr class="${statusClass}" data-status="${status}">
+            <td>${employee.custom_id}</td>
+            <td>${employee.full_name}</td>
+            <td>${employee.department || 'General'}</td>
+            <td>${date.toLocaleDateString()}</td>
+            <td>${record ? record.check_in : ''}</td>
+            <td>${record ? record.check_out : ''}</td>
+            <td><span class="badge bg-${status === 'late' ? 'warning' : status === 'absent' ? 'danger' : 'success'}">
+                <i class="bi bi-${status === 'late' ? 'clock-fill' : status === 'absent' ? 'x-circle-fill' : 'check-circle-fill'}"></i>
+                ${status.charAt(0).toUpperCase() + status.slice(1)}
+            </span></td>
+        </tr>
+    `;
 }
 
 // Setup date picker
@@ -1105,12 +1641,12 @@ function loadEmployeesList(container) {
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Employee Directory</h5>
-                    <!-- <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="showArchivedCheck">
-                        <label class="form-check-label" for="showArchivedCheck">
-                            Show archived employees
-                        </label>
-                    </div> -->
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" id="showArchivedBtn">
+                            <i class="bi bi-archive me-1"></i> View Archived Employees
+                        </button>
+                        <input type="hidden" id="showArchivedCheck" value="false">
+                    </div>
                 </div>
                 <div class="list-body">
                     <div class="table-responsive">
@@ -1127,7 +1663,7 @@ function loadEmployeesList(container) {
                             </thead>
                             <tbody id="employeesList">
                                 <tr>
-                                    <td colspan="6" class="text-center py-4">
+                                    <td colspan="7" class="text-center py-4">
                                         <div class="spinner-border text-primary" role="status"></div>
                                         <p class="mt-2">Loading employees...</p>
                                     </td>
@@ -1159,8 +1695,28 @@ function loadEmployeesList(container) {
         departmentFilter.addEventListener('change', filterEmployees);
     }
     
-    if (showArchivedCheck) {
-        showArchivedCheck.addEventListener('change', filterEmployees);
+    // Add event listener for the archived employees button
+    const showArchivedBtn = document.getElementById('showArchivedBtn');
+    if (showArchivedBtn) {
+        showArchivedBtn.addEventListener('click', function() {
+            const showArchivedCheck = document.getElementById('showArchivedCheck');
+            const currentValue = showArchivedCheck.value === 'true';
+            showArchivedCheck.value = !currentValue;
+            
+            // Update button state and text
+            if (!currentValue) {
+                this.classList.remove('btn-outline-secondary');
+                this.classList.add('btn-secondary');
+                this.innerHTML = '<i class="bi bi-eye-slash me-1"></i> Show Active Employees';
+            } else {
+                this.classList.remove('btn-secondary');
+                this.classList.add('btn-outline-secondary');
+                this.innerHTML = '<i class="bi bi-archive me-1"></i> View Archived Employees';
+            }
+            
+            // Filter employees with the new setting
+            filterEmployees();
+        });
     }
     
     // Load employees data
@@ -1180,7 +1736,7 @@ async function fetchEmployeesList() {
         
         employeesList.innerHTML = `
             <tr>
-                <td colspan="6" class="text-center py-4">
+                <td colspan="7" class="text-center py-4">
                     <div class="spinner-border text-primary" role="status"></div>
                     <p class="mt-2">Loading employees...</p>
                 </td>
@@ -1195,7 +1751,7 @@ async function fetchEmployeesList() {
             console.error('User not authenticated');
             employeesList.innerHTML = `
                 <tr>
-                    <td colspan="6" class="text-center py-4">
+                    <td colspan="7" class="text-center py-4">
                         <div class="alert alert-danger">
                             <i class="bi bi-exclamation-triangle me-2"></i>
                             You must be logged in to view employee lists.
@@ -1267,7 +1823,7 @@ async function fetchEmployeesList() {
             console.log('No employee profiles found');
             employeesList.innerHTML = `
                 <tr>
-                    <td colspan="6" class="text-center py-4">
+                    <td colspan="7" class="text-center py-4">
                         <div class="alert alert-info">
                             <i class="bi bi-info-circle me-2"></i>
                             No employees found. Use the Register button to add your first employee.
@@ -1299,7 +1855,7 @@ async function fetchEmployeesList() {
         if (employeesList) {
             employeesList.innerHTML = `
                 <tr>
-                    <td colspan="6" class="text-center py-4">
+                    <td colspan="7" class="text-center py-4">
                         <div class="alert alert-danger">
                             <i class="bi bi-exclamation-triangle me-2"></i>
                             Error: ${error.message}
@@ -1325,7 +1881,7 @@ function displayEmployees(employees) {
         console.log('No employees to display');
         employeesList.innerHTML = `
             <tr>
-                <td colspan="6" class="text-center py-4">
+                <td colspan="7" class="text-center py-4">
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle me-2"></i>
                         <div>
@@ -1486,13 +2042,17 @@ function populateDepartmentFilter(employees) {
 function filterEmployees() {
     const searchTerm = document.getElementById('employeeSearch')?.value.toLowerCase() || '';
     const departmentFilter = document.getElementById('departmentFilter')?.value || 'All';
-    const showArchived = document.getElementById('showArchivedCheck')?.checked || false;
+    const showArchived = document.getElementById('showArchivedCheck')?.value === 'true' || false;
     
     if (!window.employeesData) return;
     
     const filteredEmployees = window.employeesData.filter(employee => {
-        // Filter by archive status
-        if (!showArchived && employee.archived) return false;
+        // Filter by archive status - only show archived when button is active, only show active when button is inactive
+        if (showArchived) {
+            if (!employee.archived) return false;
+        } else {
+            if (employee.archived) return false;
+        }
         
         // Filter by search term
         const matchesSearch = (
@@ -2677,7 +3237,10 @@ async function showEmployeeAttendanceModal(employeeId, employeeName) {
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title">Attendance History: <span id="employeeLogsName"></span></h5>
+                            <div>
+                                <h5 class="modal-title mb-1">Attendance History: <span id="employeeLogsName"></span></h5>
+                                <small class="text-muted" id="employeeHireDate"></small>
+                            </div>
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body">
@@ -2701,49 +3264,19 @@ async function showEmployeeAttendanceModal(employeeId, employeeName) {
                                     </button>
                                 </div>
                             </div>
-
-                            <!-- Attendance Stats Cards
-                            <div class="row mb-3">
-                                <div class="col-md-4">
-                                    <div class="card bg-success text-white">
-                                        <div class="card-body text-center">
-                                            <h6 class="card-title mb-0">Present</h6>
-                                            <h3 class="mb-0" id="presentCount">0</h3>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="card bg-warning text-dark">
-                                        <div class="card-body text-center">
-                                            <h6 class="card-title mb-0">Late</h6>
-                                            <h3 class="mb-0" id="lateCount">0</h3>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="card bg-danger text-white">
-                                        <div class="card-body text-center">
-                                            <h6 class="card-title mb-0">Absent</h6>
-                                            <h3 class="mb-0" id="absentCount">0</h3>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>-->
-
+                            
                             <!-- Filter Buttons -->
-                            <div class="btn-group mb-3" role="group">
-                                <button type="button" class="btn btn-outline-secondary active" data-filter="all">
-                                    All Records
-                                </button>
-                                <button type="button" class="btn btn-outline-success" data-filter="present">
-                                    Present
-                                </button>
-                                <button type="button" class="btn btn-outline-warning" data-filter="late">
-                                    Late
-                                </button>
-                                <button type="button" class="btn btn-outline-danger" data-filter="absent">
-                                    Absent
-                                </button>
+                            <div class="mb-3">
+                                <div class="d-flex gap-1align-items-end">
+                                    <div class="flex-grow-1">
+                                        <div class="btn-group w-150" role="group">
+                                            <button type="button" class="btn btn-outline-primary" id="empFilterAll" data-filter="all">All</button>
+                                            <button type="button" class="btn btn-outline-success" data-filter="on-time">On Time</button>
+                                            <button type="button" class="btn btn-outline-warning" id="empFilterLate" data-filter="late">Late</button>
+                                            <button type="button" class="btn btn-outline-danger" id="empFilterAbsent" data-filter="absent">Absent</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Attendance Table -->
@@ -2784,48 +3317,233 @@ async function showEmployeeAttendanceModal(employeeId, employeeName) {
         // In this version, we do not add filter button event listeners
     }
     
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('employeeAttendanceModal'));
     document.getElementById('employeeLogsName').textContent = employeeName;
     
-    const modal = new bootstrap.Modal(document.getElementById('employeeAttendanceModal'));
+    // Get employee's hire date and display it
+    supabaseClient
+        .from('profiles')
+        .select('created_at')
+        .eq('id', employeeId)
+        .single()
+        .then(({ data }) => {
+            if (data && data.created_at) {
+                const hireDate = new Date(data.created_at);
+                document.getElementById('employeeHireDate').textContent = `Date Hired: ${hireDate.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                })}`;
+            }
+        });
+        
     modal.show();
     
+    // Reset filter to 'all'
+    currentEmployeeFilter = 'all';
+    
+    // Default to this week and fetch logs
     await fetchEmployeeLogs();
+    
+    // Initialize filter buttons to match current filter
+    const filterButtons = document.querySelectorAll('#employeeAttendanceModal [data-filter]');
+    filterButtons.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.filter === 'all') {
+            btn.classList.add('active');
+        }
+    });
+}
+
+// Current filter for employee logs
+let currentEmployeeFilter = 'all';
+
+// Setup employee attendance filter buttons
+function setupEmployeeLogFilters() {
+    const filterButtons = document.querySelectorAll('#employeeAttendanceModal [data-filter]');
+    
+    filterButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            // Update active button
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            // Set current filter and re-fetch logs
+            currentEmployeeFilter = button.dataset.filter;
+            console.log(`Switched employee log filter to: ${currentEmployeeFilter}`);
+            filterEmployeeLogs();
+        });
+    });
+}
+
+// Function to filter employee logs without re-fetching data
+function filterEmployeeLogs() {
+    console.log(`Filtering employee logs with filter: ${currentEmployeeFilter}`);
+    const rows = document.querySelectorAll('#employeeLogsTable tr[data-status]');
+    let matchCount = 0;
+
+    rows.forEach(row => {
+        const status = row.getAttribute('data-status');
+        const matchesFilter = currentEmployeeFilter === 'all' || status === currentEmployeeFilter;
+        
+        if (matchesFilter) {
+            row.style.display = '';
+            matchCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    // Show or hide the no records message
+    const noRecordsRow = document.getElementById('employeeNoRecordsRow');
+    if (noRecordsRow) {
+        noRecordsRow.style.display = matchCount === 0 ? '' : 'none';
+    }
+    
+    // Update filter button counts
+    updateEmployeeFilterButtonCounts();
+}
+
+// Update employee filter buttons with count information
+function updateEmployeeFilterButtonCounts() {
+    const rows = document.querySelectorAll('#employeeLogsTable tr[data-status]');
+    let counts = { all: 0, late: 0, absent: 0 };
+    
+    rows.forEach(row => {
+        const status = row.getAttribute('data-status');
+        counts.all++;
+        
+        if (status === 'late') counts.late++;
+        if (status === 'absent') counts.absent++;
+    });
+    
+    // Update the button text
+    document.getElementById('empFilterAll').textContent = `All (${counts.all})`;
+    document.getElementById('empFilterLate').textContent = `Late (${counts.late})`;
+    document.getElementById('empFilterAbsent').textContent = `Absent (${counts.absent})`;
 }
 
 async function fetchEmployeeLogs() {
     const tableBody = document.getElementById('employeeLogsTable');
     const rangeType = document.getElementById('dateRangeType').value;
     let startDate, endDate;
-    
-    // Calculate date range
     const now = new Date();
-    switch(rangeType) {
-        case 'week':
-            startDate = new Date(now);
-            startDate.setDate(now.getDate() - now.getDay()); // Start of week
-            endDate = new Date(startDate);
-            endDate.setDate(startDate.getDate() + 6); // End of week
-            break;
-        case 'month':
-            startDate = new Date(now.getFullYear(), now.getMonth(), 1); // Start of month
-            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0); // End of month
-            break;
-        case 'custom':
-            startDate = new Date(document.getElementById('startDate').value);
-            endDate = new Date(document.getElementById('endDate').value);
-            if (!startDate || !endDate) {
-                showToast('Error', 'Please select both start and end dates', 'danger');
-                return;
-            }
-            break;
-    }
-    // Prevent showing future dates
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (endDate > today) {
-        endDate = new Date(today); // Only show up to today
-    }
+    
     try {
+        // First, get employee's hire date (created_at)
+        const { data: employee, error: employeeError } = await supabaseClient
+            .from('profiles')
+            .select('created_at')
+            .eq('id', currentEmployeeId)
+            .single();
+
+        if (employeeError) throw employeeError;
+
+        const hireDate = employee?.created_at ? new Date(employee.created_at) : null;
+        const now = new Date();
+
+        switch(rangeType) {
+            case 'week':
+                startDate = new Date(now);
+                startDate.setDate(now.getDate() - now.getDay()); // Start of week
+                endDate = new Date(startDate);
+                endDate.setDate(startDate.getDate() + 6); // End of week
+                break;
+            case 'month':
+                startDate = new Date(now.getFullYear(), now.getMonth(), 1); // Start of month
+                endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0); // End of month
+                break;
+            case 'custom':
+                // Make sure the input elements exist
+                const startDateInput = document.getElementById('startDate');
+                const endDateInput = document.getElementById('endDate');
+                
+                if (!startDateInput || !endDateInput || !startDateInput.value || !endDateInput.value) {
+                    showToast('Error', 'Please select both start and end dates', 'danger');
+                    return;
+                }
+                
+                // Parse dates and set time to start/end of day
+                startDate = new Date(startDateInput.value);
+                startDate.setHours(0, 0, 0, 0); // Start of day
+                
+                endDate = new Date(endDateInput.value);
+                endDate.setHours(23, 59, 59, 999); // End of day
+                
+                // Validate date format
+                if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                    showToast('Error', 'Invalid date format', 'danger');
+                    return;
+                }
+                
+                console.log('Custom date range selected:', {
+                    startDate: startDate.toISOString(),
+                    endDate: endDate.toISOString(),
+                    hireDate: hireDate ? hireDate.toISOString() : 'Not set'
+                });
+                break;
+        }
+
+        // Get the display formatted hire date for messages
+        const formattedHireDate = hireDate ? hireDate.toLocaleDateString() : 'Not specified';
+        console.log('Comparing dates:', {
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+            hireDate: hireDate ? hireDate.toISOString() : 'Not set',
+            isBeforeHireDate: (hireDate && endDate < hireDate)
+        });
+        
+        // Check if the entire date range is before hire date
+        if (hireDate && endDate < hireDate) {
+            // If the entire selected range is before the employee was hired
+            console.log('Date range is entirely before hire date');
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center py-4">
+                        <div class="alert alert-info mb-3">
+                            Hire Date: ${formattedHireDate}
+                        </div>
+                        <div class="alert alert-warning">
+                            <i class="bi bi-info-circle me-2"></i>
+                            No attendance records available. The selected date range is before this employee was hired.
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return; // Exit function early
+        }
+        
+        // Ensure startDate is not before hire date
+        if (hireDate) {
+            startDate = new Date(Math.max(startDate, hireDate));
+        }
+
+        // Prevent showing future dates
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (endDate > today) {
+            endDate = new Date(today); // Only show up to today
+        }
+        
+        // Check if after adjustments, the date range is invalid (startDate > endDate)
+        if (startDate > endDate) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center py-4">
+                        <div class="alert alert-info mb-3">
+                            Hire Date: ${hireDate ? hireDate.toLocaleDateString() : 'Not specified'}
+                        </div>
+                        <div class="alert alert-warning">
+                            <i class="bi bi-info-circle me-2"></i>
+                            No valid date range available after considering hire date and current date.
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return; // Exit function early
+        }
+
         // Show loading state
         tableBody.innerHTML = `
             <tr>
@@ -2871,6 +3589,17 @@ async function fetchEmployeeLogs() {
             if (record) {
                 // Existing attendance record
                 const checkIn = new Date(record.check_in);
+                // Check if weekend
+                const isWeekendDay = date.getDay() === 0 || date.getDay() === 6;
+                if (isWeekendDay) {
+                    return {
+                        date: date,
+                        checkIn: null,
+                        checkOut: null,
+                        status: 'no-office'
+                    };
+                }
+                
                 // Determine if late (after 9 AM)
                 const isLate = checkIn.getHours() > 9 || 
                              (checkIn.getHours() === 9 && checkIn.getMinutes() > 0);
@@ -2878,10 +3607,21 @@ async function fetchEmployeeLogs() {
                     date: date,
                     checkIn: checkIn,
                     checkOut: record.check_out ? new Date(record.check_out) : null,
-                    status: isLate ? 'late' : 'on-time'
+                    status: isLate ? 'late' : 'on_time'
                 };
             } else {
-                // Absent record
+                // Check if weekend
+                const isWeekendDay = date.getDay() === 0 || date.getDay() === 6;
+                if (isWeekendDay) {
+                    return {
+                        date: date,
+                        checkIn: null,
+                        checkOut: null,
+                        status: 'no-office'
+                    };
+                }
+                
+                // Absent record for weekdays
                 return {
                     date: date,
                     checkIn: null,
@@ -2891,28 +3631,61 @@ async function fetchEmployeeLogs() {
             }
         });
 
-        // Display records
-        tableBody.innerHTML = completeRecords.map(record => {
+        // Display records with hire date information
+        const recordsHTML = completeRecords.map(record => {
             const statusClass = record.status === 'late' ? 'bg-warning' : 
                               record.status === 'absent' ? 'bg-danger' : 
+                              record.status === 'no-office' ? 'bg-info' : 
                               'bg-success';
             
-                    return `
-                        <tr>
-                            <td>${record.date.toLocaleDateString()}</td>
-                            <td>${record.status === 'absent' ? '-' : 
-                                record.checkIn.toLocaleTimeString()}</td>
-                            <td>${record.status === 'absent' ? '-' : 
-                                (record.checkOut ? record.checkOut.toLocaleTimeString() : '-')}</td>
-                            <td>
-                                <span class="badge ${statusClass}">
-                                    ${record.status.toUpperCase()}
-                                    ${record.status === 'late' ? calculateLateness(record.checkIn) : ''}
-                                </span>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
+            // For On Time and Late status, show actual times, otherwise leave blank
+            const checkInDisplay = record.status === 'on_time' || record.status === 'late' ? 
+                record.checkIn.toLocaleTimeString() : '';
+            
+            // For check-out, only show time if available, otherwise leave blank
+            const checkOutDisplay = record.checkOut ? record.checkOut.toLocaleTimeString() : '';
+            
+            const statusText = record.status === 'no-office' ? 'NO OFFICE' : 
+                              record.status === 'on_time' ? 'ON TIME' : 
+                              record.status.toUpperCase();
+            
+            return `
+                <tr data-status="${record.status}" class="${currentEmployeeFilter !== 'all' && record.status !== currentEmployeeFilter ? 'd-none' : ''}">
+                    <td>
+                        ${isWeekend(record.date) ? '<i class="bi bi-calendar-week text-primary me-2"></i>' : ''}
+                        ${record.date.toLocaleDateString()}
+                    </td>
+                    <td>${checkInDisplay}</td>
+                    <td>${checkOutDisplay}</td>
+                    <td>
+                        <span class="badge ${statusClass}">
+                            ${statusText}
+                            ${record.status === 'late' ? calculateLateness(record.checkIn) : ''}
+                        </span>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        const hasRecords = completeRecords.length > 0;
+        const noRecordsMessage = `
+            <tr id="employeeNoRecordsRow" style="display: none;">
+                <td colspan="4" class="text-center py-4">
+                    <div class="alert alert-info">
+                        No matching records found.
+                    </div>
+                </td>
+            </tr>
+        `;
+
+        tableBody.innerHTML = `
+            ${noRecordsMessage}
+            ${recordsHTML}
+        `;
+        
+        // Setup filter buttons with counts
+        setupEmployeeLogFilters();
+        updateEmployeeFilterButtonCounts();
 
     } catch (error) {
         console.error('Error fetching employee logs:', error);
@@ -2929,15 +3702,38 @@ async function fetchEmployeeLogs() {
     }
 }
 
+// Helper function to check if a date is weekend
+function isWeekend(date) {
+    const day = date.getDay();
+    return day === 0 || day === 6; // Sunday (0) or Saturday (6)
+}
+
 // Helper function to calculate lateness
 function calculateLateness(checkInTime) {
-    if (!checkInTime) return '';
-    const expectedTime = new Date(checkInTime);
-    expectedTime.setHours(20, 0, 0, 0);
-    const lateBy = Math.floor((checkInTime - expectedTime) / (1000 * 60));
-    const hours = Math.floor(lateBy / 60);
-    const minutes = lateBy % 60;
+    if (!checkInTime) return 0;
+    
+    // Convert to Date object if it's a string
+    const checkIn = checkInTime instanceof Date ? checkInTime : new Date(checkInTime);
+    
+    // Expected time is 9:00 AM on the same day
+    const expectedTime = new Date(checkIn);
+    expectedTime.setHours(9, 0, 0, 0);
+    
+    // Calculate minutes late (max with 0 to avoid negative values)
+    const lateBy = Math.max(0, Math.floor((checkIn - expectedTime) / (1000 * 60)));
+    
+    return lateBy;
+}
+
+// Helper function to format lateness string
+function formatLateness(minutesLate) {
+    if (!minutesLate || minutesLate <= 0) return '';
+    
+    const hours = Math.floor(minutesLate / 60);
+    const minutes = minutesLate % 60;
+    
     return hours > 0 ? 
         ` (${hours}h ${minutes}m late)` : 
         ` (${minutes}m late)`;
 }
+
