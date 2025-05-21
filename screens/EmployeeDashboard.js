@@ -38,7 +38,7 @@ export default function EmployeeDashboard({ navigation }) {
   const [editingProfile, setEditingProfile] = useState(false);
   const [editedProfile, setEditedProfile] = useState({});
   const [changePasswordModal, setChangePasswordModal] = useState(false);
-  const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
+  const [passwords, setPasswords] = useState({ new: '', confirm: '' });
   const [activeSection, setActiveSection] = useState('attendance');
   const [attendanceStats, setAttendanceStats] = useState({
     present_days: 0,
@@ -47,6 +47,8 @@ export default function EmployeeDashboard({ navigation }) {
     total: 0
   });
   const [employeeAttendance, setEmployeeAttendance] = useState([]);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     fetchEmployeeData();
@@ -368,20 +370,9 @@ export default function EmployeeDashboard({ navigation }) {
         
       if (error) throw error;
       
-      // Show success alert and wait for user acknowledgment
-      Alert.alert(
-        'Success',
-        'Your profile has been updated successfully.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setEditingProfile(false); // Close the modal
-              fetchEmployeeData(); // Refresh data
-            }
-          }
-        ]
-      );
+      Alert.alert('Success', 'Your profile has been updated successfully.');
+      setEditingProfile(false);
+      fetchEmployeeData(); // Refresh data
     } catch (error) {
       console.error('Error updating profile:', error);
       Alert.alert('Error', 'Failed to update profile: ' + error.message);
@@ -390,13 +381,13 @@ export default function EmployeeDashboard({ navigation }) {
   
   const handleChangePassword = () => {
     setChangePasswordModal(true);
-    setPasswords({ current: '', new: '', confirm: '' });
+    setPasswords({ new: '', confirm: '' });
   };
   
   const handleUpdatePassword = async () => {
     try {
       // Validate inputs
-      if (!passwords.current || !passwords.new || !passwords.confirm) {
+      if (!passwords.new || !passwords.confirm) {
         Alert.alert('Validation Error', 'All password fields are required');
         return;
       }
@@ -411,18 +402,52 @@ export default function EmployeeDashboard({ navigation }) {
         return;
       }
       
-      // Update password
-      const { error } = await supabase.auth.updateUser({
-        password: passwords.new
-      });
-      
-      if (error) throw error;
-      
-      Alert.alert('Success', 'Your password has been updated successfully.');
-      setChangePasswordModal(false);
+      // Show confirmation dialog before updating
+      Alert.alert(
+        'Password Changed',
+        'Your password has been successfully updated!',
+        [
+          {
+            text: 'OK',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                // Update password
+                const { error } = await supabase.auth.updateUser({
+                  password: passwords.new
+                });
+                
+                if (error) throw error;
+                
+                // Show success message
+                Alert.alert(
+                  'Success',
+                  'Your password has been updated successfully.',
+                  [
+                    {
+                      text: 'OK',
+                      onPress: () => {
+                        setChangePasswordModal(false);
+                        // Clear password fields
+                        setPasswords({ new: '', confirm: '' });
+                        // Reset password visibility
+                        setShowNewPassword(false);
+                        setShowConfirmPassword(false);
+                      }
+                    }
+                  ]
+                );
+              } catch (updateError) {
+                console.error('Error updating password:', updateError);
+                Alert.alert('Error', 'Failed to update password: ' + updateError.message);
+              }
+            }
+          }
+        ]
+      );
     } catch (error) {
-      console.error('Error updating password:', error);
-      Alert.alert('Error', 'Failed to update password: ' + error.message);
+      console.error('Error in handleUpdatePassword:', error);
+      Alert.alert('Error', 'An unexpected error occurred');
     }
   };
   
@@ -887,36 +912,49 @@ export default function EmployeeDashboard({ navigation }) {
             
             <ScrollView style={styles.editForm}>
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Current Password</Text>
-                <TextInput
-                  style={styles.input}
-                  value={passwords.current}
-                  onChangeText={(text) => setPasswords({...passwords, current: text})}
-                  placeholder="Current Password"
-                  secureTextEntry={true}
-                />
-              </View>
-              
-              <View style={styles.formGroup}>
                 <Text style={styles.label}>New Password</Text>
-                <TextInput
-                  style={styles.input}
-                  value={passwords.new}
-                  onChangeText={(text) => setPasswords({...passwords, new: text})}
-                  placeholder="New Password"
-                  secureTextEntry={true}
-                />
+                <View style={styles.passwordInputContainer}>
+                  <TextInput
+                    style={styles.passwordInput}
+                    value={passwords.new}
+                    onChangeText={(text) => setPasswords({...passwords, new: text})}
+                    placeholder="New Password"
+                    secureTextEntry={!showNewPassword}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowNewPassword(!showNewPassword)}
+                  >
+                    <Ionicons 
+                      name={showNewPassword ? "eye-outline" : "eye-off-outline"} 
+                      size={24} 
+                      color="#666"
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
               
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Confirm New Password</Text>
-                <TextInput
-                  style={styles.input}
-                  value={passwords.confirm}
-                  onChangeText={(text) => setPasswords({...passwords, confirm: text})}
-                  placeholder="Confirm New Password"
-                  secureTextEntry={true}
-                />
+                <View style={styles.passwordInputContainer}>
+                  <TextInput
+                    style={styles.passwordInput}
+                    value={passwords.confirm}
+                    onChangeText={(text) => setPasswords({...passwords, confirm: text})}
+                    placeholder="Confirm New Password"
+                    secureTextEntry={!showConfirmPassword}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    <Ionicons 
+                      name={showConfirmPassword ? "eye-outline" : "eye-off-outline"} 
+                      size={24} 
+                      color="#666"
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
               
               <Text style={styles.passwordNote}>
@@ -1452,5 +1490,22 @@ const styles = StyleSheet.create({
   },
   employeeScrollList: {
     flexGrow: 0,
+  },
+  passwordInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 6,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+  },
+  eyeButton: {
+    padding: 10,
   },
 });
