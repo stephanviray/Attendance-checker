@@ -368,9 +368,20 @@ export default function EmployeeDashboard({ navigation }) {
         
       if (error) throw error;
       
-      Alert.alert('Success', 'Your profile has been updated successfully.');
-      setEditingProfile(false);
-      fetchEmployeeData(); // Refresh data
+      // Show success alert and wait for user acknowledgment
+      Alert.alert(
+        'Success',
+        'Your profile has been updated successfully.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              setEditingProfile(false); // Close the modal
+              fetchEmployeeData(); // Refresh data
+            }
+          }
+        ]
+      );
     } catch (error) {
       console.error('Error updating profile:', error);
       Alert.alert('Error', 'Failed to update profile: ' + error.message);
@@ -1442,4 +1453,4 @@ const styles = StyleSheet.create({
   employeeScrollList: {
     flexGrow: 0,
   },
-}); 
+});
