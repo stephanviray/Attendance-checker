@@ -563,7 +563,51 @@ function showAttendanceLogs() {
     // Add event listeners
     const searchInput = document.getElementById('attendanceSearch');
     if (searchInput) {
-        searchInput.addEventListener('input', filterAttendanceLogs);
+        searchInput.addEventListener('input', function() {
+            const today = new Date();
+            const formattedToday = today.toISOString().split('T')[0];
+            const datePicker = document.getElementById('attendanceDatePicker');
+            
+            if (datePicker && datePicker.value === formattedToday) {
+                // For current date, use the existing data and just filter what's shown
+                const searchTerm = this.value.toLowerCase().trim();
+                const rows = document.querySelectorAll('#attendanceList tr[data-status]');
+                let hasVisibleRows = false;
+                
+                rows.forEach(row => {
+                    const nameCell = row.querySelector('td:nth-child(2)'); // Name is in the second column
+                    const name = nameCell ? nameCell.textContent.toLowerCase() : '';
+                    const isVisible = name.includes(searchTerm);
+                    
+                    row.style.display = isVisible ? '' : 'none';
+                    if (isVisible) hasVisibleRows = true;
+                });
+                
+                // Show/hide no results message
+                const noResultsRow = document.getElementById('noResultsRow');
+                if (!hasVisibleRows) {
+                    if (!noResultsRow) {
+                        const attendanceList = document.getElementById('attendanceList');
+                        const newRow = document.createElement('tr');
+                        newRow.id = 'noResultsRow';
+                        newRow.innerHTML = `
+                            <td colspan="7" class="text-center p-3">
+                                <div class="alert alert-info mb-0">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    No matching records found.
+                                </div>
+                            </td>
+                        `;
+                        attendanceList.appendChild(newRow);
+                    }
+                } else if (noResultsRow) {
+                    noResultsRow.remove();
+                }
+            } else {
+                // For other dates, use the existing filter function
+                filterAttendanceLogs();
+            }
+        });
     }
     
     // Setup date picker
@@ -572,14 +616,186 @@ function showAttendanceLogs() {
     // Setup filter buttons
     setupFilterButtons();
     
-    // Load attendance data
-    fetchAttendanceLogs();
+    // Immediately load and display attendance records
+    loadAndDisplayCurrentRecords();
+
+}
+
+// Direct function to load and display current records without delay
+async function loadAndDisplayCurrentRecords() {
+    console.log('Loading and displaying current records');
+    
+    const attendanceList = document.getElementById('attendanceList');
+    if (!attendanceList) {
+        console.error('Attendance list element not found');
+        return;
+    }
+    
+    // Show loading spinner
+    attendanceList.innerHTML = `
+        <tr><td colspan="7" class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading records...</p>
+        </td></tr>`;
+    
+    try {
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        if (!currentUser || !currentUser.id) throw new Error('No user data found');
+
+        // Get the current date
+        const today = new Date();
+        const datePicker = document.getElementById('attendanceDatePicker');
+        if (datePicker) {
+            datePicker.value = today.toISOString().split('T')[0];
+        }
+        
+        // Set up date range for today
+        let startDate = new Date(today);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(startDate);
+        endDate.setHours(23, 59, 59, 999);
+        
+        // Check if it's past end of workday (6:01 PM) for marking absences
+        const sixPmOneMin = new Date(startDate);
+        sixPmOneMin.setHours(18, 1, 0, 0); // 6:01 PM exactly
+        
+        // Only mark absent if we're viewing today and it's past 6:01pm
+        const shouldMarkAbsent = today >= sixPmOneMin;
+        
+        // Fetch all active employees
+        const { data: allEmployees, error: employeesError } = await supabaseClient
+            .from('profiles')
+            .select('id, full_name, department, custom_id')
+            .eq('role', 'employee')
+            .eq('archived', false)
+            .eq('company_id', currentUser.id);
+            
+        if (employeesError) throw employeesError;
+        
+        // Fetch attendance records for today
+        const { data: attendanceRecords, error: attendanceError } = await supabaseClient
+            .from('attendance')
+            .select('employee_id, check_in, check_out')
+            .gte('check_in', startDate.toISOString())
+            .lte('check_in', endDate.toISOString())
+            .eq('recorded_by', currentUser.id);
+            
+        if (attendanceError) throw attendanceError;
+        
+        // Create map of attendance records
+        const attendanceMap = new Map();
+        attendanceRecords.forEach(record => {
+            attendanceMap.set(record.employee_id, record);
+        });
+        
+        // Generate rows for all employees (on-time and late only before 6:01 PM)
+        const rows = allEmployees.map(emp => {
+            const record = attendanceMap.get(emp.id);
+            const isWeekend = today.getDay() === 0 || today.getDay() === 6;
+            
+            // Status determination
+            let status, statusClass, badgeClass, iconClass;
+            
+            if (isWeekend) {
+                status = 'No Office';
+                statusClass = '';
+                badgeClass = 'bg-secondary';
+                iconClass = 'bi-calendar-x';
+            } else if (record) {
+                const minutesLate = calculateLateness(record.check_in);
+                if (minutesLate > 0) {
+                    // Calculate lateness text for display
+                    const hoursLate = Math.floor(minutesLate / 60);
+                    const remainingMinutes = minutesLate % 60;
+                    const lateText = hoursLate > 0 ? 
+                        `${hoursLate}h ${remainingMinutes}m late` : 
+                        `${minutesLate}m late`;
+                    
+                    status = `Late (${lateText})`;
+                    statusClass = 'table-warning';
+                    badgeClass = 'bg-warning';
+                    iconClass = 'bi-clock-fill';
+                } else {
+                    status = 'On Time';
+                    statusClass = 'table-success';
+                    badgeClass = 'bg-success';
+                    iconClass = 'bi-check-circle-fill';
+                }
+            } else if (shouldMarkAbsent) {
+                // Only mark as absent if it's past workday end (6:01 PM)
+                status = 'Absent';
+                statusClass = 'table-danger';
+                badgeClass = 'bg-danger';
+                iconClass = 'bi-x-circle-fill';
+            } else {
+                // Before 6:01 PM, don't show employees who haven't checked in yet
+                return null;
+            }
+            
+            return `
+                <tr class="${statusClass}" data-status="${status.toLowerCase().includes('late') ? 'late' : (status === 'On Time' ? 'present' : 'absent')}">
+                    <td>${emp.custom_id}</td>
+                    <td>${emp.full_name}</td>
+                    <td>${emp.department || 'General'}</td>
+                    <td>${startDate.toLocaleDateString()}</td>
+                    <td>${record ? new Date(record.check_in).toLocaleTimeString() : ''}</td>
+                    <td>${record && record.check_out ? new Date(record.check_out).toLocaleTimeString() : ''}</td>
+                    <td><span class="badge ${badgeClass}"><i class="bi ${iconClass}"></i> ${status}</span></td>
+                </tr>
+            `;
+        }).filter(row => row !== null).join('');
+        
+        if (rows.length === 0) {
+            attendanceList.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center py-4">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            ${shouldMarkAbsent ? 'No attendance records found for today.' : 'No attendance records yet. Employees will be marked absent after 6:01 PM.'}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        } else {
+            attendanceList.innerHTML = rows;
+        }
+        
+        // Make sure the All button is selected and properly styled
+        document.querySelectorAll('.btn-group .btn').forEach(btn => {
+            btn.classList.remove('active', 'btn-danger', 'btn-warning', 'btn-secondary');
+            if (btn.id === 'filterAll') {
+                btn.classList.remove('btn-outline-secondary');
+                btn.classList.add('active', 'btn-secondary');
+            } else if (btn.id === 'filterLate') {
+                btn.classList.add('btn-outline-warning');
+            } else if (btn.id === 'filterAbsent') {
+                btn.classList.add('btn-outline-danger');
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error displaying current records:', error);
+        attendanceList.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-4">
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Error: ${error.message}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
 }
 
 // Fetch attendance logs
 async function fetchAttendanceLogs() {
     console.log('Fetching attendance logs');
-
+    
+    // Return a promise so we can chain actions after data loads
+    return new Promise(async (resolve, reject) => {
     try {
         // Show loading state
         const attendanceList = document.getElementById('attendanceList');
@@ -762,7 +978,7 @@ async function fetchAttendanceLogs() {
                         (checkInDate.getHours() === 9 && checkInDate.getMinutes() > 0)) {
                         return 'late';
                     }
-                    return 'on-time';
+                    return 'present';
                 })();
 
             // Initialize lateness text
@@ -820,10 +1036,30 @@ async function fetchAttendanceLogs() {
             `;
         }).join('');
 
+        // Now directly show the records in the table
         attendanceList.innerHTML = attendanceHTML;
-
+        
+        // Set All button as active by default
+        document.querySelectorAll('.btn-group .btn').forEach(btn => {
+            btn.classList.remove('active', 'btn-danger', 'btn-warning');
+            // Reset to outline style
+            if (btn.id === 'filterAll') {
+                btn.classList.remove('btn-outline-secondary');
+                btn.classList.add('active', 'btn-secondary');
+            } else if (btn.id === 'filterLate') {
+                btn.classList.remove('btn-warning');
+                btn.classList.add('btn-outline-warning');
+            } else if (btn.id === 'filterAbsent') {
+                btn.classList.remove('btn-danger');
+                btn.classList.add('btn-outline-danger');
+            }
+        });
+        
         // Setup filter buttons
         setupFilterButtons();
+        
+        // Resolve the promise to indicate successful completion
+        resolve();
 
     } catch (error) {
         console.error('Error in fetchAttendanceLogs:', error);
@@ -837,7 +1073,9 @@ async function fetchAttendanceLogs() {
                 </td>
             </tr>
         `;
+        reject(error);
     }
+    });
 }
 
 // Filter attendance logs based on search and date filter
@@ -1023,6 +1261,17 @@ async function displayAllRecords() {
         const searchInput = document.getElementById('attendanceSearch');
         const searchTerm = searchInput?.value.toLowerCase().trim() || '';
 
+        // Check if it's past end of workday (6:01 PM) for marking absences
+        const now = new Date();
+        const sixPmOneMin = new Date(startDate);
+        sixPmOneMin.setHours(18, 1, 0, 0); // 6:01 PM exactly
+        
+        // Only mark absent if we're viewing today and it's past 6:01pm, or
+        // if we're viewing a past date (we assume workday is complete)
+        const isToday = now.toDateString() === startDate.toDateString();
+        const isPastDate = startDate < new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const shouldMarkAbsent = (isToday && now >= sixPmOneMin) || isPastDate;
+        
         // Generate rows for all employees (on_time, late, and absent)
         const rows = allEmployees.map(emp => {
             const record = attendanceMap.get(emp.id);
@@ -1070,15 +1319,19 @@ async function displayAllRecords() {
                     badgeClass = 'bg-success';
                     iconClass = 'bi-check-circle-fill';
                 }
-            } else {
+            } else if (shouldMarkAbsent) {
+                // Only mark as absent if it's past workday end (6:01 PM)
                 status = 'Absent';
                 statusClass = 'table-danger';
                 badgeClass = 'bg-danger';
                 iconClass = 'bi-x-circle-fill';
+            } else {
+                // Before 6:01 PM, don't show employees who haven't checked in at all
+                return null; // This will filter out this employee from the results
             }
             
             return `
-                <tr class="${statusClass}" data-status="${isWeekend ? 'weekend' : record ? (status.toLowerCase().includes('late') ? 'late' : 'on_time') : 'absent'}">
+                <tr class="${statusClass}" data-status="${isWeekend ? 'weekend' : record ? (status.toLowerCase().includes('late') ? 'late' : 'present') : 'absent'}">
                     <td>${emp.custom_id}</td>
                     <td>${emp.full_name}</td>
                     <td>${emp.department || 'General'}</td>
@@ -1332,10 +1585,10 @@ async function displayLateOnly() {
             attendanceList.innerHTML = rowsHtml;
         }
         
-        // Update filter button to show count
+        // Keep the button text as just "Late" without the count
         const lateFilterBtn = document.getElementById('filterLate');
         if (lateFilterBtn) {
-            lateFilterBtn.textContent = `Late (${lateRecords.length})`;
+            lateFilterBtn.textContent = 'Late';
         }
 
     } catch (err) {
@@ -1376,14 +1629,18 @@ async function displayAbsenteesOnly() {
         endDate.setHours(23, 59, 59, 999);
 
         const now = new Date();
-        const sixPm = new Date(startDate);
-        sixPm.setHours(18, 0, 0, 0);
+        const sixPmOneMin = new Date(startDate);
+        sixPmOneMin.setHours(18, 1, 0, 0); // 6:01 PM exactly
 
-        const isPastSixPm = now >= sixPm;
+        // Only mark as absent if:
+        // 1. For today: it's past 6pm (18:00)
+        // 2. For past dates: only if it's past 6pm on that day (we consider the full workday)
         const isToday = now.toDateString() === startDate.toDateString();
         const isPastDate = startDate < new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-        const shouldMarkAbsent = isPastSixPm || isPastDate;
+        
+        // Only mark absent if we're viewing today and it's past 6:01pm, or
+        // if we're viewing a past date (we assume workday is complete)
+        const shouldMarkAbsent = (isToday && now >= sixPmOneMin) || isPastDate;
 
         // Get all active employees
         const { data: allEmployees, error: employeesError } = await supabaseClient
@@ -1405,7 +1662,7 @@ async function displayAbsenteesOnly() {
 
         const checkedInIds = new Set(attendanceRecords.map(r => r.employee_id));
 
-        // Only mark absent if it's past 6 PM or date is in the past
+        // Only mark absent if the workday is complete (after 6 PM)
         const absentees = shouldMarkAbsent
             ? allEmployees.filter(emp => !checkedInIds.has(emp.id))
             : [];
@@ -1416,7 +1673,7 @@ async function displayAbsenteesOnly() {
                     <td colspan="7" class="text-center py-4">
                         <div class="alert alert-success">
                             <i class="bi bi-check-circle me-2"></i>
-                            No absentees for the selected date.
+                            ${!shouldMarkAbsent && isToday ? 'Workday not complete yet. Employees will be marked absent after 6:01 PM.' : 'No absentees for the selected date.'}
                         </div>
                     </td>
                 </tr>
@@ -1499,7 +1756,7 @@ function setupFilterButtons() {
 
 // Helper function to generate attendance row
 function generateAttendanceRow(employee, record, date, isWeekend) {
-    const status = record ? (calculateLateness(record.check_in) > 0 ? 'late' : 'on_time') : 'absent';
+    const status = record ? (calculateLateness(record.check_in) > 0 ? 'late' : 'present') : 'absent';
     const statusClass = status === 'late' ? 'table-warning' : 
                        status === 'absent' ? 'table-danger' : '';
     
@@ -1533,7 +1790,23 @@ function setupDatePicker() {
         
         // Add event listener for date change
         datePicker.addEventListener('change', () => {
-            fetchAttendanceLogs();
+            fetchAttendanceLogs().then(() => {
+                // Ensure the All filter is applied and button is activated
+                displayAllRecords();
+                // Update button styling
+                document.querySelectorAll('.btn-group .btn').forEach(btn => {
+                    btn.classList.remove('active', 'btn-danger', 'btn-warning', 'btn-secondary');
+                    // Reset to outline style
+                    if (btn.id === 'filterAll') {
+                        btn.classList.remove('btn-outline-secondary');
+                        btn.classList.add('active', 'btn-secondary');
+                    } else if (btn.id === 'filterLate') {
+                        btn.classList.add('btn-outline-warning');
+                    } else if (btn.id === 'filterAbsent') {
+                        btn.classList.add('btn-outline-danger');
+                    }
+                });
+            });
         });
     }
     
@@ -1541,7 +1814,23 @@ function setupDatePicker() {
         clearDateBtn.addEventListener('click', () => {
             if (datePicker) {
                 datePicker.value = '';
-                fetchAttendanceLogs();
+                fetchAttendanceLogs().then(() => {
+                    // Ensure the All filter is applied and button is activated
+                    displayAllRecords();
+                    // Update button styling
+                    document.querySelectorAll('.btn-group .btn').forEach(btn => {
+                        btn.classList.remove('active', 'btn-danger', 'btn-warning', 'btn-secondary');
+                        // Reset to outline style
+                        if (btn.id === 'filterAll') {
+                            btn.classList.remove('btn-outline-secondary');
+                            btn.classList.add('active', 'btn-secondary');
+                        } else if (btn.id === 'filterLate') {
+                            btn.classList.add('btn-outline-warning');
+                        } else if (btn.id === 'filterAbsent') {
+                            btn.classList.add('btn-outline-danger');
+                        }
+                    });
+                });
             }
         });
     }
@@ -3271,7 +3560,7 @@ async function showEmployeeAttendanceModal(employeeId, employeeName) {
                                     <div class="flex-grow-1">
                                         <div class="btn-group w-150" role="group">
                                             <button type="button" class="btn btn-outline-primary" id="empFilterAll" data-filter="all">All</button>
-                                            <button type="button" class="btn btn-outline-success" data-filter="on-time">On Time</button>
+                                            <button type="button" class="btn btn-outline-success" data-filter="present">On Time</button>
                                             <button type="button" class="btn btn-outline-warning" id="empFilterLate" data-filter="late">Late</button>
                                             <button type="button" class="btn btn-outline-danger" id="empFilterAbsent" data-filter="absent">Absent</button>
                                         </div>
@@ -3581,10 +3870,15 @@ async function fetchEmployeeLogs() {
             attendanceMap.set(dateKey, record);
         });
 
+        // Get current date for comparison
+        const todayDate = new Date();
+        todayDate.setHours(0, 0, 0, 0);
+
         // Create complete attendance record including absences
         const completeRecords = dates.map(date => {
             const dateKey = date.toDateString();
             const record = attendanceMap.get(dateKey);
+            const isToday = date.toDateString() === todayDate.toDateString();
 
             if (record) {
                 // Existing attendance record
@@ -3607,7 +3901,15 @@ async function fetchEmployeeLogs() {
                     date: date,
                     checkIn: checkIn,
                     checkOut: record.check_out ? new Date(record.check_out) : null,
-                    status: isLate ? 'late' : 'on_time'
+                    status: isLate ? 'late' : 'present'
+                };
+            } else if (isToday) {
+                // For today, show as pending if no record yet
+                return {
+                    date: date,
+                    checkIn: null,
+                    checkOut: null,
+                    status: 'pending'
                 };
             } else {
                 // Check if weekend
@@ -3621,7 +3923,7 @@ async function fetchEmployeeLogs() {
                     };
                 }
                 
-                // Absent record for weekdays
+                // Only mark as absent for past dates
                 return {
                     date: date,
                     checkIn: null,
@@ -3636,23 +3938,25 @@ async function fetchEmployeeLogs() {
             const statusClass = record.status === 'late' ? 'bg-warning' : 
                               record.status === 'absent' ? 'bg-danger' : 
                               record.status === 'no-office' ? 'bg-info' : 
+                              record.status === 'pending' ? 'bg-secondary' :
                               'bg-success';
             
             // For On Time and Late status, show actual times, otherwise leave blank
-            const checkInDisplay = record.status === 'on_time' || record.status === 'late' ? 
+            const checkInDisplay = record.status === 'present' || record.status === 'late' ? 
                 record.checkIn.toLocaleTimeString() : '';
             
             // For check-out, only show time if available, otherwise leave blank
             const checkOutDisplay = record.checkOut ? record.checkOut.toLocaleTimeString() : '';
             
             const statusText = record.status === 'no-office' ? 'NO OFFICE' : 
-                              record.status === 'on_time' ? 'ON TIME' : 
+                              record.status === 'present' ? 'ON TIME' : 
+                              record.status === 'pending' ? 'PENDING' :
                               record.status.toUpperCase();
             
             return `
                 <tr data-status="${record.status}" class="${currentEmployeeFilter !== 'all' && record.status !== currentEmployeeFilter ? 'd-none' : ''}">
                     <td>
-                        ${isWeekend(record.date) ? '<i class="bi bi-calendar-week text-primary me-2"></i>' : ''}
+                        ${record.status !== 'no-office' && isWeekend(record.date) ? '<i class="bi bi-calendar-week text-primary me-2"></i>' : ''}
                         ${record.date.toLocaleDateString()}
                     </td>
                     <td>${checkInDisplay}</td>

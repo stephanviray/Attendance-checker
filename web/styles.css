@@ -942,13 +942,13 @@ tr[data-status="on-time"] {
     background-color: rgba(25, 135, 84, 0.1);
 }
 
-tr[data-status="on-time"] td:first-child::before {
+/* tr[data-status="on-time"] td:first-child::before {
     content: "🟢";
     margin-right: 8px;
-}
+} */
 
 
-tr[data-status="late"] {
+/*tr[data-status="late"] {
     background-color: rgba(255, 193, 7, 0.1);
 }
 
@@ -965,6 +965,7 @@ tr[data-status="absent"] td:first-child::before {
     content: "🔴";
     margin-right: 8px;
 }
+*/
 
 /* Filter button styles */
 .btn-group .btn.active {
