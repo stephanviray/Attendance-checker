@@ -693,7 +693,7 @@ async function loadAndDisplayCurrentRecords() {
         // Generate rows for all employees (on-time and late only before 6:01 PM)
         const rows = allEmployees.map(emp => {
             const record = attendanceMap.get(emp.id);
-            const isWeekend = today.getDay() === 0 || today.getDay() === 6;
+            const isWeekend = today.getDay() === 0;
             
             // Status determination
             let status, statusClass, badgeClass, iconClass;
@@ -945,14 +945,14 @@ async function fetchAttendanceLogs() {
 
         if (!activeRecords || activeRecords.length === 0) {
             // Check if the selected date is weekend
-            const isWeekend = startDate.getDay() === 0 || startDate.getDay() === 6;
+            const isWeekend = startDate.getDay() === 0;
             
             attendanceList.innerHTML = `
                 <tr>
                     <td colspan="7" class="text-center py-4">
                         <div class="alert alert-info">
                             <i class="bi bi-info-circle me-2"></i>
-                            ${isWeekend ? 'No Office on Weekends.' : 'No attendance records found for the selected period.'}
+                            ${isWeekend ? 'No Office on Sunday.' : 'No attendance records found for the selected period.'}
                         </div>
                     </td>
                 </tr>
@@ -970,7 +970,7 @@ async function fetchAttendanceLogs() {
             const checkOutTime = checkOutDate ? checkOutDate.toLocaleTimeString() : '-';
 
             // Determine status (absent, on-time, late, weekend)
-            const isWeekendDay = checkInDate.getDay() === 0 || checkInDate.getDay() === 6;
+            const isWeekendDay = checkInDate.getDay() === 0;
             let status = isWeekendDay ? 'weekend' : 
                 record.status === 'absent' ? 'absent' : 
                 (() => {
@@ -1275,7 +1275,7 @@ async function displayAllRecords() {
         // Generate rows for all employees (on_time, late, and absent)
         const rows = allEmployees.map(emp => {
             const record = attendanceMap.get(emp.id);
-            const isWeekend = startDate.getDay() === 0 || startDate.getDay() === 6;
+            const isWeekend = startDate.getDay() === 0;
             
             // Enhanced search functionality - search across multiple fields like employee list search
             const matchesSearch = !searchTerm || (
@@ -3884,7 +3884,7 @@ async function fetchEmployeeLogs() {
                 // Existing attendance record
                 const checkIn = new Date(record.check_in);
                 // Check if weekend
-                const isWeekendDay = date.getDay() === 0 || date.getDay() === 6;
+                const isWeekendDay = date.getDay() === 0;
                 if (isWeekendDay) {
                     return {
                         date: date,
@@ -3913,7 +3913,7 @@ async function fetchEmployeeLogs() {
                 };
             } else {
                 // Check if weekend
-                const isWeekendDay = date.getDay() === 0 || date.getDay() === 6;
+                const isWeekendDay = date.getDay() === 0;
                 if (isWeekendDay) {
                     return {
                         date: date,
@@ -4009,7 +4009,7 @@ async function fetchEmployeeLogs() {
 // Helper function to check if a date is weekend
 function isWeekend(date) {
     const day = date.getDay();
-    return day === 0 || day === 6; // Sunday (0) or Saturday (6)
+    return day === 0; // Sunday (0) or Saturday (6)
 }
 
 // Helper function to calculate lateness
