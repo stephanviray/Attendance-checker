@@ -75,7 +75,7 @@ export default function LoginScreen({ navigation }) {
       style={styles.container}
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <Text style={styles.title}>Welcome Back</Text>
+        <Text style={styles.title}>Welcome!</Text>
         <Text style={styles.subtitle}>Login to your account</Text>
         
         <View style={styles.formContainer}>
